@@ -11,7 +11,9 @@
     "@privy-io/server-auth": "^1.32.5",
     "@repo/db": "workspace:*",
     "@repo/shared": "workspace:*",
-    "hono": "^4.12.27"
+    "@t3-oss/env-core": "^0.13.11",
+    "hono": "^4.12.27",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/node": "^20.11.17",
