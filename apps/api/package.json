@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^2.0.6",
+    "@hono/zod-validator": "^0.8.0",
     "@privy-io/server-auth": "^1.32.5",
     "@repo/db": "workspace:*",
     "@repo/shared": "workspace:*",
