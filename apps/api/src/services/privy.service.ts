@@ -1,6 +1,7 @@
 import { PrivyClient } from '@privy-io/server-auth';
 import { encodeFunctionData, parseUnits, createPublicClient, http } from 'viem';
 import { base, baseSepolia } from 'viem/chains';
+import { TOKEN_CONTRACTS, CHAINS } from '@repo/shared';
 import { env } from '../env.js';
 
 export const privy = new PrivyClient(env.PRIVY_APP_ID, env.PRIVY_APP_SECRET);
@@ -18,17 +19,21 @@ const ERC20_TRANSFER_ABI = [
   },
 ] as const;
 
-export const USDC_ADDRESS = (env.BASE_CHAIN_ID === 8453
-  ? '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
-  : '0x036CbD53842c5426634e7929541eC2318f3dCF7e') as `0x${string}`;
+const isMainnet = env.BASE_CHAIN_ID === 8453;
 
-export const chain = env.BASE_CHAIN_ID === 8453 ? base : baseSepolia;
+export const USDC_ADDRESS = (isMainnet
+  ? TOKEN_CONTRACTS.BASE_MAINNET.USDC
+  : TOKEN_CONTRACTS.BASE_SEPOLIA.USDC) as `0x${string}`;
+
+export const chain = isMainnet ? base : baseSepolia;
+
+const rpcSubdomain = isMainnet
+  ? CHAINS.BASE_MAINNET.alchemyRpcSubdomain
+  : CHAINS.BASE_SEPOLIA.alchemyRpcSubdomain;
 
 export const publicClient = createPublicClient({
   chain,
-  transport: http(
-    `https://${env.BASE_CHAIN_ID === 8453 ? 'base-mainnet' : 'base-sepolia'}.g.alchemy.com/v2/${env.ALCHEMY_API_KEY}`
-  ),
+  transport: http(`https://${rpcSubdomain}.g.alchemy.com/v2/${env.ALCHEMY_API_KEY}`),
 });
 
 /** Extract smart wallet address from Privy linked_accounts */

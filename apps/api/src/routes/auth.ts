@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { PrivyWebhookSchema } from '@repo/shared';
 import { prisma } from '../config/prisma.js';
 import { env } from '../env.js';
 import { privy, extractSmartWalletAddress } from '../services/privy.service.js';
@@ -23,7 +24,7 @@ app.post('/', async (c) => {
     return c.json({ error: 'Invalid signature' }, 401);
   }
 
-  const payload = JSON.parse(rawBody);
+  const payload = PrivyWebhookSchema.parse(JSON.parse(rawBody));
 
   // Only handle user creation events
   if (payload.type !== 'user.created') {

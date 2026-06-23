@@ -4,7 +4,7 @@ import { zValidator } from '@hono/zod-validator';
 import { prisma } from '../config/prisma.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { getUserBalance } from '../services/ledger.service.js';
-import { env } from '../env.js';
+import type { BalanceResponse } from '@repo/shared';
 
 const app = new Hono();
 
@@ -56,12 +56,11 @@ app.get('/balance', async (c) => {
 
   const rate = rateConfig?.sellRate.toNumber() ?? 0;
   const usdcNum = parseFloat(usdc);
-  const totalETB = (usdcNum * rate).toFixed(2);
 
-  return c.json({
+  return c.json<BalanceResponse>({
     usdc,
     totalUSD: usdcNum.toFixed(2),
-    totalETB,
+    totalETB: (usdcNum * rate).toFixed(2),
     rate: rate.toFixed(4),
   });
 });
