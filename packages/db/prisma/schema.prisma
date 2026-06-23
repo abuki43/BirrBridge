@@ -1,0 +1,339 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ═══════════════════════════════════════
+//  USERS
+// ═══════════════════════════════════════
+model User {
+  id              String        @id @default(cuid())
+  privyId         String        @unique      // Privy DID
+  email           String?       @unique
+  phone           String?       @unique
+  fullName        String?
+
+  // Privy Smart Wallet address (ERC-4337)
+  // Created automatically by Privy on signup
+  smartWalletAddress  String?   @unique
+
+  kycStatus       KycStatus     @default(NONE)
+  status          UserStatus    @default(ACTIVE)
+
+  // Push notification token (Expo)
+  pushToken       String?
+
+  bankAccounts    BankAccount[]
+  ledgerEntries   Ledger[]
+  deposits        Deposit[]
+  transfersSent   Transfer[]    @relation("SentTransfers")
+  transfersReceived Transfer[]  @relation("ReceivedTransfers")
+  swaps           Swap[]
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([privyId])
+  @@index([email])
+  @@index([phone])
+  @@index([smartWalletAddress])
+}
+
+enum KycStatus {
+  NONE
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+// ═══════════════════════════════════════
+//  BANK ACCOUNTS
+// ═══════════════════════════════════════
+model BankAccount {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+
+  bankName        String        // "CBE", "Awash", "Telebirr", "CBE Birr"
+  accountNumber   String
+  accountName     String
+  isDefault       Boolean       @default(false)
+
+  swaps           Swap[]
+
+  createdAt       DateTime      @default(now())
+
+  @@index([userId])
+}
+
+// ═══════════════════════════════════════
+//  LEDGER (Fast-read mirror of on-chain)
+//  Source of truth = Base blockchain
+//  This table is a cache for fast balance reads
+// ═══════════════════════════════════════
+model Ledger {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+
+  token           TokenType
+  type            LedgerType    // CREDIT or DEBIT
+  amount          Decimal       @db.Decimal(18, 6)
+  balanceAfter    Decimal       @db.Decimal(18, 6)
+
+  referenceType   ReferenceType
+  referenceId     String        // ID of Deposit / Transfer / Swap
+
+  // On-chain verification
+  txHash          String?       // Base tx hash for on-chain entries
+  blockNumber     BigInt?
+
+  description     String?
+
+  createdAt       DateTime      @default(now())
+
+  @@index([userId, token])
+  @@index([referenceType, referenceId])
+  @@index([txHash])
+}
+
+enum LedgerType {
+  CREDIT    // Tokens in
+  DEBIT     // Tokens out
+}
+
+enum ReferenceType {
+  DEPOSIT
+  TRANSFER_IN
+  TRANSFER_OUT
+  SWAP_OUT
+  FEE
+}
+
+// ═══════════════════════════════════════
+//  DEPOSITS (External → Smart Wallet)
+// ═══════════════════════════════════════
+model Deposit {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+
+  token           TokenType
+  amount          Decimal       @db.Decimal(18, 6)
+  chain           Chain         @default(BASE)
+
+  fromAddress     String        // External wallet that sent
+  toAddress       String        // User's Privy Smart Wallet
+  txHash          String        @unique
+  blockNumber     BigInt?
+
+  status          DepositStatus @default(PENDING)
+  confirmedAt     DateTime?
+  creditedAt      DateTime?
+
+  createdAt       DateTime      @default(now())
+
+  @@index([userId])
+  @@index([txHash])
+  @@index([status])
+}
+
+enum DepositStatus {
+  PENDING     // Detected, awaiting block confirmation
+  CONFIRMED   // Block confirmed
+  CREDITED    // Ledger updated
+  FAILED
+}
+
+// ═══════════════════════════════════════
+//  TRANSFERS (User → User, On-Chain)
+//  Real ERC-20 transfer on Base
+//  Gas sponsored by Privy
+// ═══════════════════════════════════════
+model Transfer {
+  id              String        @id @default(cuid())
+
+  senderId        String
+  sender          User          @relation("SentTransfers", fields: [senderId], references: [id])
+
+  receiverId      String
+  receiver        User          @relation("ReceivedTransfers", fields: [receiverId], references: [id])
+
+  token           TokenType
+  amount          Decimal       @db.Decimal(18, 6)
+
+  // On-chain details
+  txHash          String?       @unique  // Base tx hash
+  blockNumber     BigInt?
+  chain           Chain         @default(BASE)
+
+  // Gas sponsoring
+  userOpHash      String?       // ERC-4337 UserOperation hash
+  gasSponsoredBy  String        @default("PRIVY")
+
+  note            String?       // Optional memo
+
+  status          TransferStatus @default(PENDING)
+  confirmedAt     DateTime?
+
+  createdAt       DateTime      @default(now())
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([txHash])
+  @@index([status])
+}
+
+enum TransferStatus {
+  PENDING       // UserOp submitted
+  CONFIRMED     // On-chain confirmed
+  FAILED
+}
+
+// ═══════════════════════════════════════
+//  SWAPS (USDC → ETB)
+// ═══════════════════════════════════════
+model Swap {
+  id                String      @id @default(cuid())
+  userId            String
+  user              User        @relation(fields: [userId], references: [id])
+
+  bankAccountId     String
+  bankAccount       BankAccount @relation(fields: [bankAccountId], references: [id])
+
+  // Token side
+  token             TokenType
+  tokenAmount       Decimal     @db.Decimal(18, 6)  // e.g., 100.000000
+  feeTokenAmount    Decimal     @db.Decimal(18, 6)  // e.g., 1.000000 (1%)
+  netTokenAmount    Decimal     @db.Decimal(18, 6)  // e.g., 99.000000
+
+  // ETB side
+  appliedRate       Decimal     @db.Decimal(18, 4)  // e.g., 130.5000
+  grossETB          Decimal     @db.Decimal(18, 2)  // e.g., 13050.00
+  feeETB            Decimal     @db.Decimal(18, 2)  // e.g., 130.50
+  netETB            Decimal     @db.Decimal(18, 2)  // e.g., 12919.50
+  feePercentage     Decimal     @db.Decimal(5, 2)   // e.g., 1.00
+
+  // On-chain (user → treasury)
+  txHash            String?     @unique   // Base tx hash
+  blockNumber       BigInt?
+  userOpHash        String?               // ERC-4337 UserOp hash
+  gasSponsoredBy    String      @default("PRIVY")
+  chain             Chain       @default(BASE)
+
+  // ArifPay (ETB payout)
+  arifPayRef        String?
+  arifPayStatus     String?
+
+  status            SwapStatus  @default(PENDING)
+  failureReason     String?
+  completedAt       DateTime?
+
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([txHash])
+  @@index([createdAt])
+}
+
+enum SwapStatus {
+  PENDING             // Quote accepted, not yet submitted
+  CRYPTO_PENDING      // UserOp submitted to Base
+  CRYPTO_CONFIRMED    // On-chain confirmed, ArifPay payout initiated
+  PAYOUT_PENDING      // ArifPay processing
+  COMPLETED           // ETB received by user
+  FAILED              // Failed — crypto returned to user
+  REFUNDED            // Manually refunded by admin
+}
+
+// ═══════════════════════════════════════
+//  RATE CONFIG
+// ═══════════════════════════════════════
+model RateConfig {
+  id          String    @id @default(cuid())
+  token       TokenType
+  sellRate    Decimal   @db.Decimal(18, 4)  // ETB per 1 token (Crypto → ETB)
+  isActive    Boolean   @default(true)
+  setBy       String    // AdminUser.id
+
+  createdAt   DateTime  @default(now())
+
+  @@index([token, isActive])
+}
+
+// ═══════════════════════════════════════
+//  FEE CONFIG
+// ═══════════════════════════════════════
+model FeeConfig {
+  id            String    @id @default(cuid())
+  percentage    Decimal   @db.Decimal(5, 2)   // e.g., 1.00 = 1%
+  minFeeUSDC    Decimal   @db.Decimal(18, 6)  // Minimum fee in token
+  maxFeeUSDC    Decimal   @db.Decimal(18, 6)  // Maximum fee in token
+  isActive      Boolean   @default(true)
+  setBy         String
+
+  createdAt     DateTime  @default(now())
+}
+
+// ═══════════════════════════════════════
+//  ADMIN USERS
+// ═══════════════════════════════════════
+model AdminUser {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  name          String
+  role          AdminRole @default(VIEWER)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+  VIEWER
+}
+
+// ═══════════════════════════════════════
+//  AUDIT LOG
+// ═══════════════════════════════════════
+model AuditLog {
+  id            String    @id @default(cuid())
+  action        String    // "RATE_UPDATED", "USER_SUSPENDED", "FEE_UPDATED"
+  performedBy   String    // AdminUser.id
+  targetType    String?   // "User", "Swap", "RateConfig"
+  targetId      String?
+  previousValue Json?     // Before state
+  newValue      Json?     // After state
+  ipAddress     String?
+
+  createdAt     DateTime  @default(now())
+
+  @@index([action])
+  @@index([performedBy])
+  @@index([createdAt])
+}
+
+// ═══════════════════════════════════════
+//  ENUMS
+// ═══════════════════════════════════════
+enum TokenType {
+  USDC
+}
+
+enum Chain {
+  BASE
+}
