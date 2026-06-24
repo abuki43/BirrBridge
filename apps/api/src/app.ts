@@ -10,6 +10,13 @@ import depositRoutes from './routes/deposit.js';
 import transferRoutes from './routes/transfers.js';
 import swapRoutes from './routes/swap.js';
 import activityRoutes from './routes/activity.js';
+import adminAuthRoutes from './routes/admin/auth.js';
+import adminDashboardRoutes from './routes/admin/dashboard.js';
+import adminUserRoutes from './routes/admin/users.js';
+import adminTransactionRoutes from './routes/admin/transactions.js';
+import adminRateRoutes from './routes/admin/rates.js';
+import adminFeeRoutes from './routes/admin/fees.js';
+import adminAuditLogRoutes from './routes/admin/audit-log.js';
 
 const app = new Hono();
 
@@ -34,6 +41,18 @@ v1.route('/deposit', depositRoutes);
 v1.route('/transfers', transferRoutes);
 v1.route('/swap', swapRoutes);
 v1.route('/activity', activityRoutes);
+
+// Admin API v1
+const admin = new Hono();
+admin.route('/auth', adminAuthRoutes);
+admin.route('/dashboard', adminDashboardRoutes);
+admin.route('/users', adminUserRoutes);
+admin.route('/transactions', adminTransactionRoutes);
+admin.route('/rates', adminRateRoutes);
+admin.route('/fees', adminFeeRoutes);
+admin.route('/audit-log', adminAuditLogRoutes);
+
+v1.route('/admin', admin);
 
 app.route('/api/v1', v1);
 
