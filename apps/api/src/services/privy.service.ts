@@ -36,6 +36,15 @@ export const publicClient = createPublicClient({
   transport: http(`https://${rpcSubdomain}.g.alchemy.com/v2/${env.ALCHEMY_API_KEY}`),
 });
 
+/** Get the smart wallet's linked account ID (used as walletId for transactions) */
+export async function getUserWalletId(privyUserId: string): Promise<string | null> {
+  const user = await privy.getUser(privyUserId);
+  const smartWallet = user.linkedAccounts.find(
+    (a: { type: string }) => a.type === 'smart_wallet'
+  );
+  return (smartWallet as { id?: string } | undefined)?.id ?? null;
+}
+
 /** Extract smart wallet address from Privy linked_accounts */
 export function extractSmartWalletAddress(
   linkedAccounts: Array<{ type: string; address?: string }>

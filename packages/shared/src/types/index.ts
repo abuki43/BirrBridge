@@ -46,3 +46,34 @@ export interface PaginatedResponse<T> {
   page: number;
   limit: number;
 }
+
+export interface TransferRecipient {
+  id: string;
+  fullName: string | null;
+  email: string | null;
+  phone: string | null;
+}
+
+export interface TransferResponse {
+  id: string;
+  amount: string;
+  token: TokenType;
+  note: string | null;
+  txHash: string | null;
+  status: TransferStatus;
+  sender: { id: string; fullName: string | null };
+  receiver: { id: string; fullName: string | null };
+  createdAt: string;
+}
+
+export interface TransferHistoryItem {
+  id: string;
+  amount: string;
+  token: TokenType;
+  note: string | null;
+  txHash: string | null;
+  status: TransferStatus;
+  direction: 'SENT' | 'RECEIVED';
+  otherParty: { id: string; fullName: string | null };
+  createdAt: string;
+}

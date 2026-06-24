@@ -7,6 +7,7 @@ import webhookRoutes from './routes/webhooks.js';
 import userRoutes from './routes/user.js';
 import bankAccountRoutes from './routes/bank-accounts.js';
 import depositRoutes from './routes/deposit.js';
+import transferRoutes from './routes/transfers.js';
 
 const app = new Hono();
 
@@ -28,6 +29,7 @@ v1.route('/user', userRoutes);
 v1.route('/users', userRoutes);
 v1.route('/user/bank-accounts', bankAccountRoutes);
 v1.route('/deposit', depositRoutes);
+v1.route('/transfers', transferRoutes);
 
 app.route('/api/v1', v1);
 
