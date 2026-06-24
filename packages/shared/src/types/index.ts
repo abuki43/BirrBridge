@@ -1,3 +1,5 @@
+export * from './activity.js';
+
 export type TokenType = 'USDC';
 export type Chain = 'BASE';
 export type KycStatus = 'NONE' | 'PENDING' | 'VERIFIED' | 'REJECTED';

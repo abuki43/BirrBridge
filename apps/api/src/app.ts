@@ -9,6 +9,7 @@ import bankAccountRoutes from './routes/bank-accounts.js';
 import depositRoutes from './routes/deposit.js';
 import transferRoutes from './routes/transfers.js';
 import swapRoutes from './routes/swap.js';
+import activityRoutes from './routes/activity.js';
 
 const app = new Hono();
 
@@ -32,6 +33,7 @@ v1.route('/user/bank-accounts', bankAccountRoutes);
 v1.route('/deposit', depositRoutes);
 v1.route('/transfers', transferRoutes);
 v1.route('/swap', swapRoutes);
+v1.route('/activity', activityRoutes);
 
 app.route('/api/v1', v1);
 
