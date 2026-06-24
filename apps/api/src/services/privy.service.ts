@@ -4,7 +4,11 @@ import { base, baseSepolia } from 'viem/chains';
 import { TOKEN_CONTRACTS, CHAINS } from '@repo/shared';
 import { env } from '../env.js';
 
-export const privy = new PrivyClient(env.PRIVY_APP_ID, env.PRIVY_APP_SECRET);
+export const privy = new PrivyClient(env.PRIVY_APP_ID, env.PRIVY_APP_SECRET, {
+  walletApi: {
+    authorizationPrivateKey: env.PRIVY_AUTHORIZATION_PRIVATE_KEY,
+  },
+});
 
 const ERC20_TRANSFER_ABI = [
   {
@@ -53,7 +57,7 @@ export function extractSmartWalletAddress(
   return smartWallet?.address ?? null;
 }
 
-/** Sponsored ERC-20 transfer — gas paid by Privy */
+/** Sponsored ERC-20 transfer — gas paid by Privy via app authorization key */
 export async function sponsoredTransfer({
   senderWalletId,
   recipientAddress,
@@ -61,17 +65,18 @@ export async function sponsoredTransfer({
 }: {
   senderWalletId: string;
   recipientAddress: string;
-  amount: string; // human-readable e.g. "25.00"
-}): Promise<string> {
+  amount: string;
+}): Promise<{ txHash: string | null; userOpHash: string | null }> {
   const data = encodeFunctionData({
     abi: ERC20_TRANSFER_ABI,
     functionName: 'transfer',
     args: [recipientAddress as `0x${string}`, parseUnits(amount, 6)],
   });
 
-  const { hash } = await privy.walletApi.ethereum.sendTransaction({
+  const result = await privy.walletApi.ethereum.sendTransaction({
     walletId: senderWalletId,
     caip2: `eip155:${env.BASE_CHAIN_ID}`,
+    sponsor: true,
     transaction: {
       to: USDC_ADDRESS,
       data,
@@ -79,7 +84,58 @@ export async function sponsoredTransfer({
     },
   });
 
-  return hash;
+  // When sponsor=true, txHash is empty and user_operation_hash is the real identifier
+  return {
+    txHash: result.hash || null,
+    userOpHash: (result as { user_operation_hash?: string }).user_operation_hash || null,
+  };
+}
+
+const alchemyRpcUrl = `https://${rpcSubdomain}.g.alchemy.com/v2/${env.ALCHEMY_API_KEY}`;
+
+/** Poll for the actual transaction hash after a sponsored UserOperation is included
+ *  Uses eth_getUserOperationReceipt (ERC-4337) via Alchemy RPC
+ */
+export async function waitForUserOpReceipt(
+  userOpHash: string,
+  maxWaitMs = 60_000,
+  pollIntervalMs = 2_000,
+): Promise<{ txHash: string } | null> {
+  const start = Date.now();
+
+  while (Date.now() - start < maxWaitMs) {
+    try {
+      const res = await fetch(alchemyRpcUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'eth_getUserOperationReceipt',
+          params: [userOpHash],
+        }),
+      });
+
+      const body = await res.json() as {
+        result?: {
+          receipt: { transactionHash: string };
+          userOpHash: string;
+          success: boolean;
+        } | null;
+      };
+
+      const receipt = body?.result;
+      if (receipt?.receipt?.transactionHash) {
+        return { txHash: receipt.receipt.transactionHash };
+      }
+    } catch {
+      // RPC error — poll again
+    }
+
+    await new Promise((r) => setTimeout(r, pollIntervalMs));
+  }
+
+  return null;
 }
 
 /** Get USDC balance for any address via Alchemy RPC */

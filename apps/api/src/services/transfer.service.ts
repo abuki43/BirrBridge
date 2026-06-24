@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma.js';
-import { sponsoredTransfer, getUserWalletId } from './privy.service.js';
+import { sponsoredTransfer, getUserWalletId, waitForUserOpReceipt } from './privy.service.js';
 import { creditLedger, debitLedger, getUserBalance } from './ledger.service.js';
 import { TransferError } from '../errors/index.js';
 
@@ -54,30 +54,62 @@ export async function sendTransfer(input: TransferInput) {
     throw new TransferError('Sender wallet not found');
   }
 
-  const txHash = await sponsoredTransfer({
-    senderWalletId: walletId,
-    recipientAddress: recipient.smartWalletAddress,
-    amount,
-  });
-
+  // Create transfer record FIRST in PENDING status
   const transfer = await prisma.transfer.create({
     data: {
       senderId: senderDbUserId,
       receiverId: recipient.id,
       token: 'USDC',
       amount: new Prisma.Decimal(amount),
-      txHash,
       note: note ?? null,
       status: 'PENDING',
     },
   });
+
+  const { txHash, userOpHash } = await sponsoredTransfer({
+    senderWalletId: walletId,
+    recipientAddress: recipient.smartWalletAddress,
+    amount,
+  });
+
+  // Poll for real tx hash if sponsored
+  let realTxHash = txHash;
+  if (!realTxHash && userOpHash) {
+    const receipt = await waitForUserOpReceipt(userOpHash);
+    realTxHash = receipt?.txHash ?? null;
+  }
+
+  await prisma.transfer.update({
+    where: { id: transfer.id },
+    data: {
+      txHash: realTxHash,
+      userOpHash,
+      ...(realTxHash ? { status: 'CONFIRMED', confirmedAt: new Date() } : {}),
+    },
+  });
+
+  if (!realTxHash) {
+    return {
+      id: transfer.id,
+      amount,
+      token: 'USDC' as const,
+      note: note ?? null,
+      txHash: null,
+      userOpHash,
+      status: 'PENDING' as const,
+      receiver: {
+        id: recipient.id,
+        fullName: recipient.fullName,
+      },
+    };
+  }
 
   await debitLedger({
     userId: senderDbUserId,
     amount,
     referenceType: 'TRANSFER_OUT',
     referenceId: transfer.id,
-    txHash,
+    txHash: realTxHash,
     description: `Transfer to ${recipient.fullName ?? recipient.email ?? 'user'}`,
   });
 
@@ -86,7 +118,7 @@ export async function sendTransfer(input: TransferInput) {
     amount,
     referenceType: 'TRANSFER_IN',
     referenceId: transfer.id,
-    txHash,
+    txHash: realTxHash,
     description: `Transfer from sender`,
   });
 
@@ -100,7 +132,7 @@ export async function sendTransfer(input: TransferInput) {
     amount,
     token: 'USDC' as const,
     note: note ?? null,
-    txHash,
+    txHash: realTxHash,
     status: 'CONFIRMED' as const,
     receiver: {
       id: recipient.id,

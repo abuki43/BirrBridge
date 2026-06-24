@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma.js';
 import { redis } from '../config/redis.js';
 import { env } from '../env.js';
-import { getUserWalletId, sponsoredTransfer } from './privy.service.js';
+import { getUserWalletId, sponsoredTransfer, waitForUserOpReceipt } from './privy.service.js';
 import { debitLedger, getUserBalance } from './ledger.service.js';
 import { initiateTransfer, fetchBanks } from './chapa.service.js';
 import { getChapaBankCode } from '../utils/index.js';
@@ -14,7 +14,14 @@ import crypto from 'crypto';
 const QUOTE_TTL_SECONDS = 60;
 const MIN_SWAP = 10;
 const MAX_SWAP = 10_000;
-const FEE_PERCENTAGE = '1.00';
+
+async function getActiveFeePercentage(): Promise<string> {
+  const config = await prisma.feeConfig.findFirst({
+    where: { isActive: true },
+    orderBy: { createdAt: 'desc' },
+  });
+  return config?.percentage.toNumber().toFixed(2) ?? '1.00';
+}
 
 export async function getRate(): Promise<{ rate: string }> {
   const cached = await redis.get('rate:USDC');
@@ -42,7 +49,8 @@ export async function createQuote(userId: string, amount: string) {
   const { rate } = await getRate();
   if (parseFloat(rate) <= 0) throw new SwapError('Rate not available');
 
-  const quote = calculateSwapQuote({ tokenAmount: amount, rate, feePercentage: FEE_PERCENTAGE });
+  const feePercentage = await getActiveFeePercentage();
+  const quote = calculateSwapQuote({ tokenAmount: amount, rate, feePercentage });
 
   const quoteId = crypto.randomUUID();
   const quoteData: SwapQuoteData = { ...quote, userId, createdAt: Date.now() };
@@ -77,17 +85,12 @@ export async function executeSwap(
     throw new SwapError('Insufficient balance');
   }
 
-  const walletId = await getUserWalletId(privyUserId);
-  if (!walletId) throw new SwapError('Wallet not found');
-
-  const txHash = await sponsoredTransfer({
-    senderWalletId: walletId,
-    recipientAddress: env.PLATFORM_TREASURY_ADDRESS,
-    amount: quote.tokenAmount,
-  });
-
+  // Create swap record FIRST in PENDING status (before on-chain tx)
+  // so if the on-chain tx succeeds, we have a DB record to reconcile
+  const swapId = crypto.randomUUID();
   const swap = await prisma.swap.create({
     data: {
+      id: swapId,
       userId,
       bankAccountId,
       token: 'USDC',
@@ -99,17 +102,47 @@ export async function executeSwap(
       feeETB: new Prisma.Decimal(quote.feeETB),
       netETB: new Prisma.Decimal(quote.netETB),
       feePercentage: new Prisma.Decimal(quote.feePercentage),
-      txHash,
-      status: 'CRYPTO_CONFIRMED',
+      status: 'CRYPTO_PENDING',
     },
   });
+
+  const walletId = await getUserWalletId(privyUserId);
+  if (!walletId) throw new SwapError('Wallet not found');
+
+  const { txHash, userOpHash } = await sponsoredTransfer({
+    senderWalletId: walletId,
+    recipientAddress: env.PLATFORM_TREASURY_ADDRESS,
+    amount: quote.tokenAmount,
+  });
+
+  // Poll for real tx hash if sponsored (userOpHash instead of txHash)
+  let realTxHash = txHash;
+  if (!realTxHash && userOpHash) {
+    const receipt = await waitForUserOpReceipt(userOpHash);
+    realTxHash = receipt?.txHash ?? null;
+  }
+
+  await prisma.swap.update({
+    where: { id: swap.id },
+    data: {
+      txHash: realTxHash,
+      userOpHash,
+      status: realTxHash ? 'CRYPTO_CONFIRMED' : 'CRYPTO_PENDING',
+    },
+  });
+
+  if (!realTxHash) {
+    // On-chain confirmation pending — return early, reconciliation job will pick it up
+    const pending = await prisma.swap.findUniqueOrThrow({ where: { id: swap.id } });
+    return formatSwapResponse(pending);
+  }
 
   await debitLedger({
     userId,
     amount: quote.tokenAmount,
     referenceType: 'SWAP_OUT',
     referenceId: swap.id,
-    txHash,
+    txHash: realTxHash,
     description: `Swap ${quote.tokenAmount} USDC → ETB`,
   });
 
