@@ -3,27 +3,15 @@ import { prisma } from '../config/prisma.js';
 
 /** Get current USDC balance for a user from the ledger */
 export async function getUserBalance(userId: string): Promise<string> {
-  const result = await prisma.ledger.aggregate({
-    where: { userId, token: 'USDC' },
-    _sum: { amount: true },
-  });
+  const rows = await prisma.$queryRaw<Array<{ balance: string }>>`
+    SELECT
+      COALESCE(SUM(CASE WHEN type = 'CREDIT' THEN amount ELSE 0 END), 0) -
+      COALESCE(SUM(CASE WHEN type = 'DEBIT' THEN amount ELSE 0 END), 0) AS balance
+    FROM "Ledger"
+    WHERE "userId" = ${userId} AND token = 'USDC'::"TokenType"
+  `;
 
-  // Sum of credits minus debits
-  const credits = await prisma.ledger.aggregate({
-    where: { userId, token: 'USDC', type: 'CREDIT' },
-    _sum: { amount: true },
-  });
-  const debits = await prisma.ledger.aggregate({
-    where: { userId, token: 'USDC', type: 'DEBIT' },
-    _sum: { amount: true },
-  });
-
-  const balance =
-    (credits._sum.amount ?? new Prisma.Decimal(0)).minus(
-      debits._sum.amount ?? new Prisma.Decimal(0)
-    );
-
-  return balance.toDecimalPlaces(6).toString();
+  return new Prisma.Decimal(rows[0]?.balance ?? 0).toDecimalPlaces(6).toString();
 }
 
 /** Credit a user's ledger (e.g. deposit received, transfer in) */

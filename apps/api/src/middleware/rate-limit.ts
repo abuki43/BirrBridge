@@ -6,10 +6,10 @@ const LIMIT = 10;
 const WINDOW = 10;
 
 export const rateLimitMiddleware = createMiddleware(async (c, next) => {
-  const userId = c.get('userId');
-  if (!userId) return next();
+  const dbUserId = c.get('dbUserId');
+  if (!dbUserId) return next();
 
-  const key = `rl:${userId}`;
+  const key = `rl:${dbUserId}`;
   const count = await redis.incr(key);
 
   if (count === 1) {
