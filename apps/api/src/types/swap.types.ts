@@ -23,7 +23,7 @@ export interface SwapDbRow {
   feeETB: Prisma.Decimal;
   netETB: Prisma.Decimal;
   txHash: string | null;
-  arifPayRef: string | null;
+  chapaRef: string | null;
   status: string;
   createdAt: Date;
 }
@@ -34,7 +34,7 @@ export interface SwapDbRowItem {
   netETB: Prisma.Decimal;
   appliedRate: Prisma.Decimal;
   txHash: string | null;
-  arifPayRef: string | null;
+  chapaRef: string | null;
   status: string;
   createdAt: Date;
 }

@@ -1,11 +1,11 @@
 import { Hono } from 'hono';
-import { createHmac, timingSafeEqual } from 'crypto';
+import { createHmac } from 'crypto';
 import { env } from '../env.js';
 import { USDC_ADDRESS } from '../services/privy.service.js';
 import { processDeposit } from '../services/deposit.service.js';
 import { prisma } from '../config/prisma.js';
-import { getSessionStatus } from '../services/arifpay.service.js';
-import type { AlchemyActivity } from '../types/index.js';
+import { verifyTransfer } from '../services/chapa.service.js';
+import type { AlchemyActivity, ChapaPayoutWebhookPayload } from '../types/index.js';
 
 const app = new Hono();
 
@@ -50,41 +50,38 @@ app.post('/alchemy', async (c) => {
   return c.json({ ok: true });
 });
 
-// POST /api/webhooks/arifpay
-app.post('/arifpay', async (c) => {
+// POST /api/webhooks/chapa
+app.post('/chapa', async (c) => {
   const rawBody = await c.req.text();
-  const signature = c.req.header('x-arifpay-signature') ?? '';
+  const signature = c.req.header('x-chapa-signature') ?? '';
 
-  const expected = createHmac('sha256', env.ARIFPAY_WEBHOOK_SECRET)
+  const expected = createHmac('sha256', env.CHAPA_WEBHOOK_SECRET)
     .update(rawBody)
     .digest('hex');
 
-  const sigBuf = Buffer.from(signature);
-  const expBuf = Buffer.from(expected);
-  if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) {
+  if (signature !== expected) {
     return c.json({ error: 'Invalid signature' }, 401);
   }
 
-  const payload = JSON.parse(rawBody);
+  const payload = JSON.parse(rawBody) as ChapaPayoutWebhookPayload;
 
-  if (payload.sessionId) {
+  if (payload.reference && payload.event?.startsWith('payout.')) {
     try {
-      const sessionStatus = await getSessionStatus(payload.sessionId);
-      const status = sessionStatus.transaction?.transactionStatus;
+      const status = payload.status;
 
       await prisma.swap.updateMany({
-        where: { arifPayRef: payload.sessionId },
+        where: { chapaRef: payload.reference },
         data: {
-          arifPayStatus: status ?? 'UNKNOWN',
-          ...(status === 'SUCCESS' || status === 'COMPLETED'
+          chapaStatus: status ?? 'UNKNOWN',
+          ...(status === 'success'
             ? { status: 'COMPLETED', completedAt: new Date() }
-            : status === 'FAILED' || status === 'CANCELLED'
+            : status === 'failed' || status === 'cancelled'
               ? { status: 'FAILED' }
               : {}),
         },
       });
     } catch (err) {
-      console.error('ArifPay webhook processing failed:', err);
+      console.error('Chapa webhook processing failed:', err);
     }
   }
 

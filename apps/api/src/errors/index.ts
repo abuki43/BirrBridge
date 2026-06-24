@@ -17,8 +17,8 @@ export class SwapError extends AppError {
   }
 }
 
-export class ArifpayError extends AppError {
+export class ChapaError extends AppError {
   constructor(message: string) {
-    super(message, 'ArifpayError');
+    super(message, 'ChapaError');
   }
 }

@@ -1,1 +1,1 @@
-export * from './bank-codes.js';
+export { getChapaBankCode, getSupportedBanksStatic } from './bank-codes.js';

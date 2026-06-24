@@ -231,9 +231,9 @@ model Swap {
   gasSponsoredBy    String      @default("PRIVY")
   chain             Chain       @default(BASE)
 
-  // ArifPay (ETB payout)
-  arifPayRef        String?
-  arifPayStatus     String?
+  // Chapa (ETB payout)
+  chapaRef          String?
+  chapaStatus       String?
 
   status            SwapStatus  @default(PENDING)
   failureReason     String?
@@ -251,8 +251,8 @@ model Swap {
 enum SwapStatus {
   PENDING             // Quote accepted, not yet submitted
   CRYPTO_PENDING      // UserOp submitted to Base
-  CRYPTO_CONFIRMED    // On-chain confirmed, ArifPay payout initiated
-  PAYOUT_PENDING      // ArifPay processing
+  CRYPTO_CONFIRMED    // On-chain confirmed, Chapa payout initiated
+  PAYOUT_PENDING      // Chapa processing
   COMPLETED           // ETB received by user
   FAILED              // Failed — crypto returned to user
   REFUNDED            // Manually refunded by admin

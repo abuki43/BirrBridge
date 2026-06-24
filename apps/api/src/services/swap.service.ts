@@ -4,8 +4,8 @@ import { redis } from '../config/redis.js';
 import { env } from '../env.js';
 import { getUserWalletId, sponsoredTransfer } from './privy.service.js';
 import { debitLedger, getUserBalance } from './ledger.service.js';
-import { createPayoutSession, executeTeleBirrB2C } from './arifpay.service.js';
-import { bankCodeForBank } from '../utils/index.js';
+import { initiateTransfer, fetchBanks } from './chapa.service.js';
+import { getChapaBankCode } from '../utils/index.js';
 import { SwapError } from '../errors/index.js';
 import type { SwapQuoteData, SwapDbRow, SwapDbRowItem } from '../types/index.js';
 import { calculateSwapQuote } from '@repo/shared';
@@ -114,40 +114,25 @@ export async function executeSwap(
   });
 
   try {
-    const nonce = `${swap.id}-${Date.now()}`;
-    const session = await createPayoutSession(
-      [
-        {
-          accountNumber: bankAccount.accountNumber,
-          bank: bankCodeForBank(bankAccount.bankName),
-          amount: parseFloat(quote.netETB),
-        },
-      ],
-      `${env.BASE_CHAIN_ID === 8453 ? 'https://birrbridge.com' : 'https://sandbox.birrbridge.com'}/api/webhooks/arifpay`,
-      nonce,
-    );
+    const bankCode = await getChapaBankCode(bankAccount.bankName, fetchBanks);
 
-    await prisma.swap.update({
-      where: { id: swap.id },
-      data: { arifPayRef: session.sessionId, arifPayStatus: 'SESSION_CREATED', status: 'PAYOUT_PENDING' },
+    const transfer = await initiateTransfer({
+      account_name: bankAccount.accountName,
+      account_number: bankAccount.accountNumber,
+      amount: quote.netETB,
+      bank_code: bankCode,
+      reference: swap.id,
     });
 
-    try {
-      await executeTeleBirrB2C(session.sessionId, bankAccount.accountNumber);
-      await prisma.swap.update({
-        where: { id: swap.id },
-        data: { arifPayStatus: 'B2C_EXECUTED' },
-      });
-    } catch {
-      await prisma.swap.update({
-        where: { id: swap.id },
-        data: { arifPayStatus: 'B2C_FAILED', status: 'FAILED' },
-      });
-    }
+    const chapaRef = transfer.data?.reference ?? '';
+    await prisma.swap.update({
+      where: { id: swap.id },
+      data: { chapaRef, chapaStatus: 'TRANSFER_INITIATED', status: 'PAYOUT_PENDING' },
+    });
   } catch {
     await prisma.swap.update({
       where: { id: swap.id },
-      data: { arifPayStatus: 'PAYOUT_FAILED', status: 'FAILED' },
+      data: { chapaStatus: 'PAYOUT_FAILED', status: 'FAILED' },
     });
   }
 
@@ -191,7 +176,7 @@ function formatSwapResponse(s: SwapDbRow) {
     feeETB: s.feeETB.toFixed(2),
     netETB: s.netETB.toFixed(2),
     txHash: s.txHash,
-    arifPayRef: s.arifPayRef,
+    chapaRef: s.chapaRef,
     status: s.status,
     createdAt: s.createdAt.toISOString(),
   };
@@ -204,7 +189,7 @@ function formatSwapItem(s: SwapDbRowItem) {
     netETB: s.netETB.toFixed(2),
     appliedRate: s.appliedRate.toFixed(4),
     txHash: s.txHash,
-    arifPayRef: s.arifPayRef,
+    chapaRef: s.chapaRef,
     status: s.status,
     createdAt: s.createdAt.toISOString(),
   };

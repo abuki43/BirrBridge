@@ -89,7 +89,7 @@ export interface SwapResponse {
   feeETB: string;
   netETB: string;
   txHash: string | null;
-  arifPayRef: string | null;
+  chapaRef: string | null;
   status: SwapStatus;
   bankAccount: { bankName: string; accountNumber: string };
   createdAt: string;
@@ -102,7 +102,7 @@ export interface SwapHistoryItem {
   appliedRate: string;
   status: SwapStatus;
   txHash: string | null;
-  arifPayRef: string | null;
+  chapaRef: string | null;
   createdAt: string;
 }
 
