@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { YStack, Text, Button } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Animated, {
@@ -26,82 +26,74 @@ export default function WelcomeScreen() {
   const logoScale = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
 
   return (
-    <View style={styles.container}>
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.center}>
-          <Animated.View entering={FadeIn.duration(800)} style={styles.logoWrap}>
+    <YStack f={1} bg="$bg">
+      <SafeAreaView style={{ flex: 1 }}>
+        <YStack f={1} jc="center" ai="center" px="$6">
+          <Animated.View entering={FadeIn.duration(800)} style={{ alignItems: 'center', position: 'absolute', top: 120 }}>
             <Animated.View style={logoScale}>
-              <Text style={styles.logo}>BirrBridge</Text>
+              <Text fontSize={48} fontWeight="500" color="$color" fontFamily="$heading">
+                BirrBridge
+              </Text>
             </Animated.View>
-            <Text style={styles.tagline}>Bridge between USDC and Birr</Text>
+            <Text fontSize={16} color="$colorSecondary" mt="$2" fontFamily="$body">
+              Bridge between USDC and Birr
+            </Text>
           </Animated.View>
 
-          <Animated.View entering={FadeIn.duration(600).delay(1200)} style={styles.heroWrap}>
-            <Text style={styles.heroIcon}>{'\u24C3'}</Text>
-            <Text style={styles.headline}>Welcome to BirrBridge</Text>
-            <Text style={styles.subtitle}>
+          <Animated.View entering={FadeIn.duration(600).delay(1200)} style={{ alignItems: 'center', width: '100%' }}>
+            <Text fontSize={48}>{'\u24C3'}</Text>
+            <Text
+              fontSize={40}
+              fontWeight="500"
+              color="$color"
+              textAlign="center"
+              mt="$4"
+              letterSpacing={-0.4}
+              fontFamily="$heading"
+            >
+              Welcome to BirrBridge
+            </Text>
+            <Text
+              fontSize={16}
+              color="$colorSecondary"
+              textAlign="center"
+              mt="$6"
+              px="$4"
+              fontFamily="$body"
+            >
               Hold USDC. Spend in Birr. No crypto knowledge needed.
             </Text>
 
-            <View style={styles.ctaWrap}>
-              <TouchableOpacity
-                style={styles.primaryCta}
+            <YStack mt="$9" width="100%" px="$6">
+              <Button
+                height={56}
+                bg="$accent"
+                color="white"
+                fontSize={16}
+                fontWeight="600"
+                borderRadius={9999}
+                fontFamily="$body"
                 onPress={() => router.push('/(auth)/login' as never)}
-                activeOpacity={0.8}
+                pressStyle={{ opacity: 0.8, scale: 0.98 }}
               >
-                <Text style={styles.primaryCtaText}>Get Started</Text>
-              </TouchableOpacity>
+                Get Started
+              </Button>
 
-              <TouchableOpacity
+              <Button
+                mt="$4"
+                bg="transparent"
+                color="$colorSecondary"
+                fontSize={14}
+                fontFamily="$body"
                 onPress={() => router.push('/(auth)/login' as never)}
+                pressStyle={{ opacity: 0.6 }}
               >
-                <Text style={styles.secondaryLink}>I already have an account</Text>
-              </TouchableOpacity>
-            </View>
+                I already have an account
+              </Button>
+            </YStack>
           </Animated.View>
-        </View>
+        </YStack>
       </SafeAreaView>
-    </View>
+    </YStack>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#191c1f' },
-  safe: { flex: 1 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-  logoWrap: { alignItems: 'center', position: 'absolute', top: 120 },
-  logo: { fontSize: 48, fontWeight: '500', color: '#ffffff' },
-  tagline: { fontSize: 16, color: 'rgba(255,255,255,0.72)', marginTop: 8 },
-  heroWrap: { alignItems: 'center', width: '100%' },
-  heroIcon: { fontSize: 48 },
-  headline: {
-    fontSize: 40,
-    fontWeight: '500',
-    color: '#ffffff',
-    textAlign: 'center',
-    marginTop: 16,
-    letterSpacing: -0.4,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.72)',
-    textAlign: 'center',
-    marginTop: 24,
-    paddingHorizontal: 16,
-  },
-  ctaWrap: { marginTop: 48, width: '100%', paddingHorizontal: 24 },
-  primaryCta: {
-    height: 56,
-    backgroundColor: '#494fdf',
-    borderRadius: 9999,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  primaryCtaText: { fontSize: 16, fontWeight: '600', color: '#ffffff' },
-  secondaryLink: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
-    textAlign: 'center',
-    marginTop: 16,
-  },
-});
