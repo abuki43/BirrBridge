@@ -10,7 +10,7 @@ export async function getUserBalance(userId: string, tx?: Prisma.TransactionClie
       COALESCE(SUM(CASE WHEN type = 'CREDIT' THEN amount ELSE 0 END), 0) -
       COALESCE(SUM(CASE WHEN type = 'DEBIT' THEN amount ELSE 0 END), 0) AS balance
     FROM "Ledger"
-    WHERE "userId" = ${userId} AND token = 'USDC'::"TokenType"
+    WHERE "userId" = ${userId} AND token = ${'USDC'}::"TokenType"
   `;
 
   return new Prisma.Decimal(rows[0]?.balance ?? 0).toDecimalPlaces(6).toString();

@@ -1,4 +1,3 @@
-import { createHmac } from 'crypto';
 import { env } from '../env.js';
 import { redis } from '../config/redis.js';
 import type {
@@ -64,14 +63,4 @@ export async function fetchBanks(): Promise<{ id: number; name: string }[]> {
   return banks;
 }
 
-export function verifyWebhookSignature(rawBody: string, signature: string): boolean {
-  const expected = createHmac('sha256', env.CHAPA_WEBHOOK_SECRET)
-    .update(rawBody)
-    .digest('hex');
 
-  if (signature.length !== expected.length) return false;
-
-  return createHmac('sha256', env.CHAPA_WEBHOOK_SECRET)
-    .update(rawBody)
-    .digest('hex') === signature;
-}

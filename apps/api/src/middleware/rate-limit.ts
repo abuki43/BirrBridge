@@ -9,7 +9,7 @@ export const rateLimitMiddleware = createMiddleware(async (c, next) => {
   const dbUserId = c.get('dbUserId');
   if (!dbUserId) return next();
 
-  const key = `rl:${dbUserId}`;
+  const key = `rl:${dbUserId}:${c.req.method}:${c.req.path}`;
   const count = await redis.incr(key);
 
   if (count === 1) {
