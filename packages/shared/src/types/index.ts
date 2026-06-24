@@ -66,6 +66,46 @@ export interface TransferResponse {
   createdAt: string;
 }
 
+export interface SwapQuoteResponse {
+  quoteId: string;
+  tokenAmount: string;
+  feeTokenAmount: string;
+  netTokenAmount: string;
+  appliedRate: string;
+  grossETB: string;
+  feeETB: string;
+  netETB: string;
+  feePercentage: string;
+  expiresAt: string;
+}
+
+export interface SwapResponse {
+  id: string;
+  tokenAmount: string;
+  feeTokenAmount: string;
+  netTokenAmount: string;
+  appliedRate: string;
+  grossETB: string;
+  feeETB: string;
+  netETB: string;
+  txHash: string | null;
+  arifPayRef: string | null;
+  status: SwapStatus;
+  bankAccount: { bankName: string; accountNumber: string };
+  createdAt: string;
+}
+
+export interface SwapHistoryItem {
+  id: string;
+  tokenAmount: string;
+  netETB: string;
+  appliedRate: string;
+  status: SwapStatus;
+  txHash: string | null;
+  arifPayRef: string | null;
+  createdAt: string;
+}
+
 export interface TransferHistoryItem {
   id: string;
   amount: string;
