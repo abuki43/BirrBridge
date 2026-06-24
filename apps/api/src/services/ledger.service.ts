@@ -3,8 +3,9 @@ import { prisma } from '../config/prisma.js';
 import type { LedgerEntryInput } from '../types/index.js';
 
 /** Get current USDC balance for a user from the ledger */
-export async function getUserBalance(userId: string): Promise<string> {
-  const rows = await prisma.$queryRaw<Array<{ balance: string }>>`
+export async function getUserBalance(userId: string, tx?: Prisma.TransactionClient): Promise<string> {
+  const client = tx ?? prisma;
+  const rows = await client.$queryRaw<Array<{ balance: string }>>`
     SELECT
       COALESCE(SUM(CASE WHEN type = 'CREDIT' THEN amount ELSE 0 END), 0) -
       COALESCE(SUM(CASE WHEN type = 'DEBIT' THEN amount ELSE 0 END), 0) AS balance
@@ -16,11 +17,12 @@ export async function getUserBalance(userId: string): Promise<string> {
 }
 
 /** Credit a user's ledger (e.g. deposit received, transfer in) */
-export async function creditLedger(input: LedgerEntryInput) {
-  const currentBalance = await getUserBalance(input.userId);
+export async function creditLedger(input: LedgerEntryInput, tx?: Prisma.TransactionClient) {
+  const client = tx ?? prisma;
+  const currentBalance = await getUserBalance(input.userId, tx);
   const balanceAfter = new Prisma.Decimal(currentBalance).plus(input.amount);
 
-  return prisma.ledger.create({
+  return client.ledger.create({
     data: {
       userId: input.userId,
       token: 'USDC',
@@ -37,11 +39,12 @@ export async function creditLedger(input: LedgerEntryInput) {
 }
 
 /** Debit a user's ledger (e.g. transfer out, swap) */
-export async function debitLedger(input: LedgerEntryInput) {
-  const currentBalance = await getUserBalance(input.userId);
+export async function debitLedger(input: LedgerEntryInput, tx?: Prisma.TransactionClient) {
+  const client = tx ?? prisma;
+  const currentBalance = await getUserBalance(input.userId, tx);
   const balanceAfter = new Prisma.Decimal(currentBalance).minus(input.amount);
 
-  return prisma.ledger.create({
+  return client.ledger.create({
     data: {
       userId: input.userId,
       token: 'USDC',

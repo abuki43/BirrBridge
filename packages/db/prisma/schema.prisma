@@ -184,6 +184,7 @@ model Transfer {
   note            String?       // Optional memo
 
   status          TransferStatus @default(PENDING)
+  failureReason   String?
   confirmedAt     DateTime?
 
   createdAt       DateTime      @default(now())

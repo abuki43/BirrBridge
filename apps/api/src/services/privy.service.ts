@@ -91,7 +91,7 @@ export async function sponsoredTransfer({
   };
 }
 
-const alchemyRpcUrl = `https://${rpcSubdomain}.g.alchemy.com/v2/${env.ALCHEMY_API_KEY}`;
+export const alchemyRpcUrl = `https://${rpcSubdomain}.g.alchemy.com/v2/${env.ALCHEMY_API_KEY}`;
 
 /** Poll for the actual transaction hash after a sponsored UserOperation is included
  *  Uses eth_getUserOperationReceipt (ERC-4337) via Alchemy RPC

@@ -82,18 +82,20 @@ export async function processDeposit({
 
 /** Revert a deposit when a chain reorg removes the activity */
 export async function revertDeposit(txHash: string): Promise<void> {
-  const deposit = await prisma.deposit.findUnique({ where: { txHash } });
-  if (!deposit || deposit.status === 'FAILED') return;
+  await prisma.$transaction(async (tx) => {
+    const deposit = await tx.deposit.findUnique({ where: { txHash } });
+    if (!deposit || deposit.status === 'FAILED') return;
 
-  // If already credited, reverse the ledger entry
-  if (deposit.status === 'CREDITED' || deposit.status === 'CONFIRMED') {
-    await prisma.ledger.deleteMany({
-      where: { referenceType: 'DEPOSIT', referenceId: deposit.id },
+    // If already credited, reverse the ledger entry
+    if (deposit.status === 'CREDITED' || deposit.status === 'CONFIRMED') {
+      await tx.ledger.deleteMany({
+        where: { referenceType: 'DEPOSIT', referenceId: deposit.id },
+      });
+    }
+
+    await tx.deposit.update({
+      where: { txHash },
+      data: { status: 'FAILED' },
     });
-  }
-
-  await prisma.deposit.update({
-    where: { txHash },
-    data: { status: 'FAILED' },
   });
 }

@@ -86,7 +86,6 @@ export async function executeSwap(
   }
 
   // Create swap record FIRST in PENDING status (before on-chain tx)
-  // so if the on-chain tx succeeds, we have a DB record to reconcile
   const swapId = crypto.randomUUID();
   const swap = await prisma.swap.create({
     data: {
@@ -106,30 +105,42 @@ export async function executeSwap(
     },
   });
 
-  const walletId = await getUserWalletId(privyUserId);
-  if (!walletId) throw new SwapError('Wallet not found');
+  let realTxHash: string | null = null;
+  let userOpHash: string | null = null;
 
-  const { txHash, userOpHash } = await sponsoredTransfer({
-    senderWalletId: walletId,
-    recipientAddress: env.PLATFORM_TREASURY_ADDRESS,
-    amount: quote.tokenAmount,
-  });
+  try {
+    const walletId = await getUserWalletId(privyUserId);
+    if (!walletId) {
+      await prisma.swap.update({ where: { id: swap.id }, data: { status: 'FAILED' } }).catch(() => {});
+      throw new SwapError('Wallet not found');
+    }
 
-  // Poll for real tx hash if sponsored (userOpHash instead of txHash)
-  let realTxHash = txHash;
-  if (!realTxHash && userOpHash) {
-    const receipt = await waitForUserOpReceipt(userOpHash);
-    realTxHash = receipt?.txHash ?? null;
+    const result = await sponsoredTransfer({
+      senderWalletId: walletId,
+      recipientAddress: env.PLATFORM_TREASURY_ADDRESS,
+      amount: quote.tokenAmount,
+    });
+    userOpHash = result.userOpHash;
+
+    // Poll for real tx hash if sponsored (userOpHash instead of txHash)
+    realTxHash = result.txHash;
+    if (!realTxHash && userOpHash) {
+      const receipt = await waitForUserOpReceipt(userOpHash);
+      realTxHash = receipt?.txHash ?? null;
+    }
+
+    await prisma.swap.update({
+      where: { id: swap.id },
+      data: {
+        txHash: realTxHash,
+        userOpHash,
+        status: realTxHash ? 'CRYPTO_CONFIRMED' : 'CRYPTO_PENDING',
+      },
+    });
+  } catch (err) {
+    await prisma.swap.update({ where: { id: swap.id }, data: { status: 'FAILED' } }).catch(() => {});
+    throw err;
   }
-
-  await prisma.swap.update({
-    where: { id: swap.id },
-    data: {
-      txHash: realTxHash,
-      userOpHash,
-      status: realTxHash ? 'CRYPTO_CONFIRMED' : 'CRYPTO_PENDING',
-    },
-  });
 
   if (!realTxHash) {
     // On-chain confirmation pending — return early, reconciliation job will pick it up

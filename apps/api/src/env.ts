@@ -12,7 +12,6 @@ export const env = createEnv({
     PRIVY_APP_SECRET: z.string().min(1),
     PRIVY_WEBHOOK_SECRET: z.string().min(1),
     PRIVY_AUTHORIZATION_PRIVATE_KEY: z.string().min(1),
-    PLATFORM_WALLET_ID: z.string().min(1),
     PLATFORM_TREASURY_ADDRESS: z.string().min(1),
     ALCHEMY_API_KEY: z.string().min(1),
     ALCHEMY_WEBHOOK_AUTH_TOKEN: z.string().min(1),

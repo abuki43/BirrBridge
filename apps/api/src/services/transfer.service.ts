@@ -66,27 +66,36 @@ export async function sendTransfer(input: TransferInput) {
     },
   });
 
-  const { txHash, userOpHash } = await sponsoredTransfer({
-    senderWalletId: walletId,
-    recipientAddress: recipient.smartWalletAddress,
-    amount,
-  });
+  let realTxHash: string | null = null;
+  let userOpHash: string | null = null;
 
-  // Poll for real tx hash if sponsored
-  let realTxHash = txHash;
-  if (!realTxHash && userOpHash) {
-    const receipt = await waitForUserOpReceipt(userOpHash);
-    realTxHash = receipt?.txHash ?? null;
+  try {
+    const { txHash, userOpHash: uop } = await sponsoredTransfer({
+      senderWalletId: walletId,
+      recipientAddress: recipient.smartWalletAddress,
+      amount,
+    });
+    userOpHash = uop;
+
+    // Poll for real tx hash if sponsored
+    realTxHash = txHash;
+    if (!realTxHash && userOpHash) {
+      const receipt = await waitForUserOpReceipt(userOpHash);
+      realTxHash = receipt?.txHash ?? null;
+    }
+
+    await prisma.transfer.update({
+      where: { id: transfer.id },
+      data: {
+        txHash: realTxHash,
+        userOpHash,
+      },
+    });
+  } catch (err) {
+    // C1: Cleanup orphaned transfer record if sponsoredTransfer fails
+    await prisma.transfer.update({ where: { id: transfer.id }, data: { status: 'FAILED' } }).catch(() => {});
+    throw err;
   }
-
-  await prisma.transfer.update({
-    where: { id: transfer.id },
-    data: {
-      txHash: realTxHash,
-      userOpHash,
-      ...(realTxHash ? { status: 'CONFIRMED', confirmedAt: new Date() } : {}),
-    },
-  });
 
   if (!realTxHash) {
     return {
@@ -104,27 +113,30 @@ export async function sendTransfer(input: TransferInput) {
     };
   }
 
-  await debitLedger({
-    userId: senderDbUserId,
-    amount,
-    referenceType: 'TRANSFER_OUT',
-    referenceId: transfer.id,
-    txHash: realTxHash,
-    description: `Transfer to ${recipient.fullName ?? recipient.email ?? 'user'}`,
-  });
+  // C2: Atomic debit + credit + status update
+  await prisma.$transaction(async (tx) => {
+    await debitLedger({
+      userId: senderDbUserId,
+      amount,
+      referenceType: 'TRANSFER_OUT',
+      referenceId: transfer.id,
+      txHash: realTxHash,
+      description: `Transfer to ${recipient.fullName ?? recipient.email ?? 'user'}`,
+    }, tx);
 
-  await creditLedger({
-    userId: recipient.id,
-    amount,
-    referenceType: 'TRANSFER_IN',
-    referenceId: transfer.id,
-    txHash: realTxHash,
-    description: `Transfer from sender`,
-  });
+    await creditLedger({
+      userId: recipient.id,
+      amount,
+      referenceType: 'TRANSFER_IN',
+      referenceId: transfer.id,
+      txHash: realTxHash,
+      description: `Transfer from sender`,
+    }, tx);
 
-  await prisma.transfer.update({
-    where: { id: transfer.id },
-    data: { status: 'CONFIRMED', confirmedAt: new Date() },
+    await tx.transfer.update({
+      where: { id: transfer.id },
+      data: { status: 'CONFIRMED', confirmedAt: new Date() },
+    });
   });
 
   return {

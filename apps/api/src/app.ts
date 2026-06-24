@@ -17,8 +17,11 @@ import adminTransactionRoutes from './routes/admin/transactions.js';
 import adminRateRoutes from './routes/admin/rates.js';
 import adminFeeRoutes from './routes/admin/fees.js';
 import adminAuditLogRoutes from './routes/admin/audit-log.js';
+import { startReconciliation } from './services/reconciliation.service.js';
 
 const app = new Hono();
+
+// startReconciliation();
 
 registerErrorHandler(app);
 
