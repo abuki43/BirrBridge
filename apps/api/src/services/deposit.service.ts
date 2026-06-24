@@ -58,25 +58,27 @@ export async function processDeposit({
         },
       });
 
-  // Mark as CONFIRMED then immediately CREDITED
-  await prisma.deposit.update({
-    where: { id: deposit.id },
-    data: { status: 'CONFIRMED', confirmedAt: new Date() },
-  });
+  // Mark as CONFIRMED then immediately CREDITED — atomically
+  await prisma.$transaction(async (tx) => {
+    await tx.deposit.update({
+      where: { id: deposit.id },
+      data: { status: 'CONFIRMED', confirmedAt: new Date() },
+    });
 
-  await creditLedger({
-    userId: user.id,
-    amount,
-    referenceType: 'DEPOSIT',
-    referenceId: deposit.id,
-    txHash,
-    blockNumber,
-    description: `Deposit from ${fromAddress.slice(0, 10)}...`,
-  });
+    await creditLedger({
+      userId: user.id,
+      amount,
+      referenceType: 'DEPOSIT',
+      referenceId: deposit.id,
+      txHash,
+      blockNumber,
+      description: `Deposit from ${fromAddress.slice(0, 10)}...`,
+    }, tx);
 
-  await prisma.deposit.update({
-    where: { id: deposit.id },
-    data: { status: 'CREDITED', creditedAt: new Date() },
+    await tx.deposit.update({
+      where: { id: deposit.id },
+      data: { status: 'CREDITED', creditedAt: new Date() },
+    });
   });
 }
 

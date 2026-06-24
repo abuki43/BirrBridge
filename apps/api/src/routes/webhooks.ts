@@ -98,10 +98,19 @@ app.post('/chapa', async (c) => {
   const payload = JSON.parse(rawBody) as ChapaPayoutWebhookPayload;
 
   if (payload.reference && payload.event?.startsWith('payout.')) {
+    const swap = await prisma.swap.findFirst({
+      where: { chapaRef: payload.reference },
+    });
+
+    if (!swap) {
+      console.error(`Chapa webhook: no swap found for ref ${payload.reference}`);
+      return c.json({ error: 'Swap not found' }, 404);
+    }
+
     const status = payload.data?.status ?? payload.status;
 
-    const result = await prisma.swap.updateMany({
-      where: { chapaRef: payload.reference },
+    await prisma.swap.update({
+      where: { id: swap.id },
       data: {
         chapaStatus: status ?? 'UNKNOWN',
         ...(status === 'success'
@@ -111,11 +120,6 @@ app.post('/chapa', async (c) => {
             : {}),
       },
     });
-
-    if (result.count === 0) {
-      console.error(`Chapa webhook: no swap found for ref ${payload.reference}`);
-      return c.json({ error: 'Swap not found' }, 404);
-    }
   }
 
   return c.json({ ok: true });
