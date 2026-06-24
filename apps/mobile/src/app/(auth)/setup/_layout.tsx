@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 
-export default function AuthLayout() {
+export default function SetupLayout() {
   return (
     <Stack
       screenOptions={{
@@ -9,10 +9,6 @@ export default function AuthLayout() {
       }}
     >
       <Stack.Screen name="index" />
-      <Stack.Screen name="login" />
-      <Stack.Screen name="otp" />
-      <Stack.Screen name="biometrics" />
-      <Stack.Screen name="setup/index" />
     </Stack>
   );
 }

@@ -1,69 +1,107 @@
-import { useState } from 'react';
-import { YStack, XStack, Input, Button, Text, Theme } from 'tamagui';
+import { useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { usePrivy } from '@privy-io/expo';
 import { useRouter } from 'expo-router';
+import Animated, {
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  Easing,
+  useAnimatedStyle,
+  FadeIn,
+} from 'react-native-reanimated';
 
-export default function LoginScreen() {
-  const [phone, setPhone] = useState('');
-  const { login } = usePrivy();
+export default function WelcomeScreen() {
   const router = useRouter();
+  const pulse = useSharedValue(1);
 
-  const handleCreateAccount = async () => {
-    // Basic implementation: trigger phone login
-    // In a real scenario, Privy handles the validation and SMS sending
-    await login({ loginMethod: 'phone', phone });
-  };
+  useEffect(() => {
+    pulse.value = withRepeat(
+      withTiming(1.02, { duration: 2000, easing: Easing.inOut(Easing.sin) }),
+      -1,
+      true,
+    );
+  }, [pulse]);
+
+  const logoScale = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
 
   return (
-    <Theme name="dark">
-      <YStack f={1} bg="$background" p="$four">
-        <SafeAreaView style={{ flex: 1 }}>
-          <YStack f={1} jc="center" gap="$four">
-            <Text fontSize={32} fontWeight="700" color="$text">
-              Let's get started!
-            </Text>
-            <Text fontSize={16} color="$textSecondary">
-              Enter your phone number. We will send you a confirmation code there.
+    <View style={styles.container}>
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.center}>
+          <Animated.View entering={FadeIn.duration(800)} style={styles.logoWrap}>
+            <Animated.View style={logoScale}>
+              <Text style={styles.logo}>BirrBridge</Text>
+            </Animated.View>
+            <Text style={styles.tagline}>Bridge between USDC and Birr</Text>
+          </Animated.View>
+
+          <Animated.View entering={FadeIn.duration(600).delay(1200)} style={styles.heroWrap}>
+            <Text style={styles.heroIcon}>{'\u24C3'}</Text>
+            <Text style={styles.headline}>Welcome to BirrBridge</Text>
+            <Text style={styles.subtitle}>
+              Hold USDC. Spend in Birr. No crypto knowledge needed.
             </Text>
 
-            <XStack gap="$two" ai="center">
-              <YStack bg="$backgroundElement" p="$three" br="$four" w={80} ai="center">
-                <Text color="$text" fontWeight="600">+251</Text>
-              </YStack>
-              <Input
-                f={1}
-                bg="$backgroundElement"
-                size="$four"
-                br="$four"
-                placeholder="Enter your phone"
-                placeholderTextColor="$textSecondary"
-                color="$text"
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
-              />
-            </XStack>
+            <View style={styles.ctaWrap}>
+              <TouchableOpacity
+                style={styles.primaryCta}
+                onPress={() => router.push('/(auth)/login' as never)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.primaryCtaText}>Get Started</Text>
+              </TouchableOpacity>
 
-            <Button
-              bg="$backgroundElement"
-              br="$four"
-              size="$four"
-              onPress={handleCreateAccount}
-            >
-              <Text color="$text" fontWeight="600">Create account</Text>
-            </Button>
-            
-            <Text 
-                color="$textSecondary" 
-                textAlign="center" 
-                onPress={() => console.log('Navigate to log in')}
-            >
-                Already have an account? Log in
-            </Text>
-          </YStack>
-        </SafeAreaView>
-      </YStack>
-    </Theme>
+              <TouchableOpacity
+                onPress={() => router.push('/(auth)/login' as never)}
+              >
+                <Text style={styles.secondaryLink}>I already have an account</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </View>
+      </SafeAreaView>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#191c1f' },
+  safe: { flex: 1 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+  logoWrap: { alignItems: 'center', position: 'absolute', top: 120 },
+  logo: { fontSize: 48, fontWeight: '500', color: '#ffffff' },
+  tagline: { fontSize: 16, color: 'rgba(255,255,255,0.72)', marginTop: 8 },
+  heroWrap: { alignItems: 'center', width: '100%' },
+  heroIcon: { fontSize: 48 },
+  headline: {
+    fontSize: 40,
+    fontWeight: '500',
+    color: '#ffffff',
+    textAlign: 'center',
+    marginTop: 16,
+    letterSpacing: -0.4,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.72)',
+    textAlign: 'center',
+    marginTop: 24,
+    paddingHorizontal: 16,
+  },
+  ctaWrap: { marginTop: 48, width: '100%', paddingHorizontal: 24 },
+  primaryCta: {
+    height: 56,
+    backgroundColor: '#494fdf',
+    borderRadius: 9999,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  primaryCtaText: { fontSize: 16, fontWeight: '600', color: '#ffffff' },
+  secondaryLink: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.6)',
+    textAlign: 'center',
+    marginTop: 16,
+  },
+});
