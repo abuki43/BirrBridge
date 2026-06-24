@@ -5,7 +5,6 @@ export interface ChapaTransferRequest {
   currency?: string;
   reference?: string;
   bank_code: number;
-  status?: string;
 }
 
 export interface ChapaTransferResponse {
@@ -67,18 +66,24 @@ export interface ChapaBanksResponse {
 
 export interface ChapaPayoutWebhookPayload {
   event: string;
-  type: string;
-  account_name: string;
-  account_number: string;
-  bank_id: number;
-  bank_name: string;
-  amount: string;
-  charge: string;
-  currency: string;
+  type?: string;
+  account_name?: string;
+  account_number?: string;
+  bank_id?: number;
+  bank_name?: string;
+  amount?: string;
+  charge?: string;
+  currency?: string;
   status: string;
   reference: string;
-  chapa_reference: string;
-  bank_reference: string;
-  created_at: string;
-  updated_at: string;
+  chapa_reference?: string;
+  bank_reference?: string;
+  created_at?: string;
+  updated_at?: string;
+  // Some Chapa webhooks wrap payload in a nested data object
+  data?: {
+    status?: string;
+    reference?: string;
+    [key: string]: unknown;
+  };
 }

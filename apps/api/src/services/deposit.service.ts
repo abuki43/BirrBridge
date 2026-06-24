@@ -14,12 +14,13 @@ export async function processDeposit({
   txHash: string;
   fromAddress: string;
   toAddress: string;
-  rawAmount: string; // raw token units as string
+  rawAmount: string;
   blockNumber: bigint;
 }): Promise<void> {
-  // Idempotency — skip if already processed
+  // Idempotency — skip if already processed and not in FAILED state
+  // FAILED means it was reverted by revertDeposit (chain reorg), so re-process
   const existing = await prisma.deposit.findUnique({ where: { txHash } });
-  if (existing) return;
+  if (existing && existing.status !== 'FAILED') return;
 
   const user = await prisma.user.findUnique({
     where: { smartWalletAddress: toAddress.toLowerCase() },
@@ -28,18 +29,39 @@ export async function processDeposit({
 
   const amount = formatUnits(BigInt(rawAmount), USDC_DECIMALS);
 
-  const deposit = await prisma.deposit.create({
-    data: {
-      userId: user.id,
-      token: 'USDC',
-      amount,
-      fromAddress: fromAddress.toLowerCase(),
-      toAddress: toAddress.toLowerCase(),
-      txHash,
-      blockNumber,
-      status: 'CONFIRMED',
-      confirmedAt: new Date(),
-    },
+  // If re-processing after reorg, update the failed record instead of creating new one
+  const deposit = existing
+    ? await prisma.deposit.update({
+        where: { txHash },
+        data: {
+          userId: user.id,
+          token: 'USDC',
+          amount,
+          fromAddress: fromAddress.toLowerCase(),
+          toAddress: toAddress.toLowerCase(),
+          blockNumber,
+          status: 'PENDING',
+          confirmedAt: null,
+          creditedAt: null,
+        },
+      })
+    : await prisma.deposit.create({
+        data: {
+          userId: user.id,
+          token: 'USDC',
+          amount,
+          fromAddress: fromAddress.toLowerCase(),
+          toAddress: toAddress.toLowerCase(),
+          txHash,
+          blockNumber,
+          status: 'PENDING',
+        },
+      });
+
+  // Mark as CONFIRMED then immediately CREDITED
+  await prisma.deposit.update({
+    where: { id: deposit.id },
+    data: { status: 'CONFIRMED', confirmedAt: new Date() },
   });
 
   await creditLedger({
@@ -55,5 +77,23 @@ export async function processDeposit({
   await prisma.deposit.update({
     where: { id: deposit.id },
     data: { status: 'CREDITED', creditedAt: new Date() },
+  });
+}
+
+/** Revert a deposit when a chain reorg removes the activity */
+export async function revertDeposit(txHash: string): Promise<void> {
+  const deposit = await prisma.deposit.findUnique({ where: { txHash } });
+  if (!deposit || deposit.status === 'FAILED') return;
+
+  // If already credited, reverse the ledger entry
+  if (deposit.status === 'CREDITED' || deposit.status === 'CONFIRMED') {
+    await prisma.ledger.deleteMany({
+      where: { referenceType: 'DEPOSIT', referenceId: deposit.id },
+    });
+  }
+
+  await prisma.deposit.update({
+    where: { txHash },
+    data: { status: 'FAILED' },
   });
 }

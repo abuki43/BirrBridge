@@ -38,7 +38,6 @@ export async function initiateTransfer(params: ChapaTransferRequest): Promise<Ch
     currency: params.currency ?? 'ETB',
     reference: params.reference,
     bank_code: params.bank_code,
-    ...(env.NODE_ENV === 'development' ? { status: 'success' } : {}),
   });
 }
 
@@ -72,7 +71,7 @@ export function verifyWebhookSignature(rawBody: string, signature: string): bool
 
   if (signature.length !== expected.length) return false;
 
-  return createHmac('sha256', env.CHAPA_SECRET_KEY)
+  return createHmac('sha256', env.CHAPA_WEBHOOK_SECRET)
     .update(rawBody)
     .digest('hex') === signature;
 }

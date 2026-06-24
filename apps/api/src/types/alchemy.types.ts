@@ -9,4 +9,8 @@ export interface AlchemyActivity {
     address: string;
     rawValue: string;
   };
+  removed?: boolean;
+  log?: {
+    removed?: boolean;
+  };
 }
