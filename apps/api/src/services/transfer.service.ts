@@ -145,6 +145,7 @@ export async function sendTransfer(input: TransferInput) {
     token: 'USDC' as const,
     note: note ?? null,
     txHash: realTxHash,
+    userOpHash,
     status: 'CONFIRMED' as const,
     receiver: {
       id: recipient.id,

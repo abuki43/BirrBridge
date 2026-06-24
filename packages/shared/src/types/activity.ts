@@ -18,7 +18,7 @@ export interface TransferActivity extends BaseActivity {
   direction: 'SENT' | 'RECEIVED';
   otherParty: { id: string; fullName: string | null };
   note: string | null;
-  txHash: string;
+  txHash: string | null;
 }
 
 export interface SwapActivity extends BaseActivity {
