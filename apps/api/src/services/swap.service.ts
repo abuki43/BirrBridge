@@ -4,7 +4,10 @@ import { redis } from '../config/redis.js';
 import { env } from '../env.js';
 import { getUserWalletId, sponsoredTransfer } from './privy.service.js';
 import { debitLedger, getUserBalance } from './ledger.service.js';
-import { createPayoutSession, executeTeleBirrB2C, ArifpayError } from './arifpay.service.js';
+import { createPayoutSession, executeTeleBirrB2C } from './arifpay.service.js';
+import { bankCodeForBank } from '../utils/index.js';
+import { SwapError } from '../errors/index.js';
+import type { SwapQuoteData, SwapDbRow, SwapDbRowItem } from '../types/index.js';
 import { calculateSwapQuote } from '@repo/shared';
 import crypto from 'crypto';
 
@@ -42,7 +45,7 @@ export async function createQuote(userId: string, amount: string) {
   const quote = calculateSwapQuote({ tokenAmount: amount, rate, feePercentage: FEE_PERCENTAGE });
 
   const quoteId = crypto.randomUUID();
-  const quoteData = { ...quote, userId, createdAt: Date.now() };
+  const quoteData: SwapQuoteData = { ...quote, userId, createdAt: Date.now() };
   await redis.set(`quote:${quoteId}`, JSON.stringify(quoteData), QUOTE_TTL_SECONDS);
 
   return {
@@ -61,8 +64,7 @@ export async function executeSwap(
   const raw = await redis.get(`quote:${quoteId}`);
   if (!raw) throw new SwapError('Quote expired or not found');
 
-  const quote = JSON.parse(raw) as Record<string, string> & { userId: string };
-
+  const quote = JSON.parse(raw) as SwapQuoteData;
   await redis.del(`quote:${quoteId}`);
 
   const bankAccount = await prisma.bankAccount.findFirst({
@@ -131,7 +133,7 @@ export async function executeSwap(
     });
 
     try {
-      const transferResult = await executeTeleBirrB2C(session.sessionId, bankAccount.accountNumber);
+      await executeTeleBirrB2C(session.sessionId, bankAccount.accountNumber);
       await prisma.swap.update({
         where: { id: swap.id },
         data: { arifPayStatus: 'B2C_EXECUTED' },
@@ -142,7 +144,7 @@ export async function executeSwap(
         data: { arifPayStatus: 'B2C_FAILED', status: 'FAILED' },
       });
     }
-  } catch (err) {
+  } catch {
     await prisma.swap.update({
       where: { id: swap.id },
       data: { arifPayStatus: 'PAYOUT_FAILED', status: 'FAILED' },
@@ -165,7 +167,7 @@ export async function getSwapHistory(userId: string, page: number, limit: number
   ]);
 
   return {
-    items: items.map(formatSwapItem),
+    items: items.map((s) => formatSwapItem(s)),
     total,
     page,
     limit,
@@ -178,7 +180,7 @@ export async function getSwapDetail(id: string, userId: string) {
   return formatSwapResponse(swap);
 }
 
-function formatSwapResponse(s: Record<string, unknown> & { id: string; tokenAmount: Prisma.Decimal; feeTokenAmount: Prisma.Decimal; netTokenAmount: Prisma.Decimal; appliedRate: Prisma.Decimal; grossETB: Prisma.Decimal; feeETB: Prisma.Decimal; netETB: Prisma.Decimal; txHash: string | null; arifPayRef: string | null; status: string; createdAt: Date }) {
+function formatSwapResponse(s: SwapDbRow) {
   return {
     id: s.id,
     tokenAmount: s.tokenAmount.toFixed(6),
@@ -195,7 +197,7 @@ function formatSwapResponse(s: Record<string, unknown> & { id: string; tokenAmou
   };
 }
 
-function formatSwapItem(s: Record<string, unknown> & { id: string; tokenAmount: Prisma.Decimal; netETB: Prisma.Decimal; appliedRate: Prisma.Decimal; txHash: string | null; arifPayRef: string | null; status: string; createdAt: Date }) {
+function formatSwapItem(s: SwapDbRowItem) {
   return {
     id: s.id,
     tokenAmount: s.tokenAmount.toFixed(6),
@@ -206,38 +208,4 @@ function formatSwapItem(s: Record<string, unknown> & { id: string; tokenAmount: 
     status: s.status,
     createdAt: s.createdAt.toISOString(),
   };
-}
-
-function bankCodeForBank(bankName: string): string {
-  const map: Record<string, string> = {
-    AWASH: 'AWINETAA',
-    CBE: 'CBETETAA',
-    DASHEN: 'DASHETAA',
-    ABYSINIA: 'ABYSETAA',
-    WEGAGEN: 'WEGAETAA',
-    ZEMEN: 'ZEMEETAA',
-    BERHAN: 'BERHETAA',
-    NIB: 'NIBEETAA',
-    COOP: 'COOPETAA',
-    HIJRA: 'HIJRETAA',
-    SIINQEE: 'SIINETAA',
-    ORROMIA: 'OROMETAA',
-    TSEHAY: 'TSEHETAA',
-    AHADU: 'AHADETAA',
-    BIRR: 'CBETETAA',
-  };
-
-  const upper = bankName.toUpperCase().replace(/\s+/g, '');
-  for (const [key, code] of Object.entries(map)) {
-    if (upper.includes(key)) return code;
-  }
-
-  return 'AWINETAA';
-}
-
-export class SwapError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'SwapError';
-  }
 }

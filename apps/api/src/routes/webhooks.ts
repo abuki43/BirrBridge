@@ -1,11 +1,11 @@
 import { Hono } from 'hono';
 import { createHmac, timingSafeEqual } from 'crypto';
-import { Prisma } from '@prisma/client';
 import { env } from '../env.js';
 import { USDC_ADDRESS } from '../services/privy.service.js';
 import { processDeposit } from '../services/deposit.service.js';
 import { prisma } from '../config/prisma.js';
 import { getSessionStatus } from '../services/arifpay.service.js';
+import type { AlchemyActivity } from '../types/index.js';
 
 const app = new Hono();
 
@@ -90,18 +90,5 @@ app.post('/arifpay', async (c) => {
 
   return c.json({ ok: true });
 });
-
-interface AlchemyActivity {
-  category: string;
-  asset: string;
-  hash: string;
-  fromAddress: string;
-  toAddress: string;
-  blockNum: string;
-  rawContract: {
-    address: string;
-    rawValue: string;
-  };
-}
 
 export default app;

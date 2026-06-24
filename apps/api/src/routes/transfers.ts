@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 import { TransferRequestSchema } from '@repo/shared';
 import { authMiddleware } from '../middleware/auth.js';
-import { sendTransfer, getTransferHistory, TransferError } from '../services/transfer.service.js';
+import { sendTransfer, getTransferHistory } from '../services/transfer.service.js';
+import { TransferError } from '../errors/index.js';
 
 const app = new Hono();
 

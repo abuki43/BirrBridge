@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma.js';
 import { sponsoredTransfer, getUserWalletId } from './privy.service.js';
 import { creditLedger, debitLedger, getUserBalance } from './ledger.service.js';
+import { TransferError } from '../errors/index.js';
 
 const MIN_TRANSFER_USDC = 1;
 
@@ -144,11 +145,4 @@ export async function getTransferHistory(userId: string, page: number, limit: nu
   }));
 
   return { items: mapped, total, page, limit };
-}
-
-export class TransferError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'TransferError';
-  }
 }

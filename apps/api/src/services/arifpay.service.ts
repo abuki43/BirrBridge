@@ -1,4 +1,6 @@
 import { env } from '../env.js';
+import type { Beneficiary, CheckoutSessionResponse, B2CTransferResponse, SessionStatusResponse } from '../types/index.js';
+import { ArifpayError } from '../errors/index.js';
 
 const BASE = env.ARIFPAY_BASE_URL;
 
@@ -18,23 +20,6 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   }
 
   return res.json() as Promise<T>;
-}
-
-interface Beneficiary {
-  accountNumber: string;
-  bank: string;
-  amount: number;
-}
-
-interface CheckoutSessionResponse {
-  sessionId: string;
-  paymentUrl: string;
-  totalAmount: number;
-}
-
-interface B2CTransferResponse {
-  sessionId: string;
-  transcation: number;
 }
 
 export async function createPayoutSession(
@@ -83,13 +68,6 @@ export async function executeTeleBirrB2C(
   return res.json();
 }
 
-export async function getSessionStatus(sessionId: string): Promise<{ transaction: { transactionStatus: string } }> {
+export async function getSessionStatus(sessionId: string): Promise<SessionStatusResponse> {
   return request('GET', `/api/checkout/session/${sessionId}`);
-}
-
-export class ArifpayError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ArifpayError';
-  }
 }

@@ -1,5 +1,6 @@
-import { Prisma, ReferenceType, LedgerType } from '@prisma/client';
+import { Prisma, LedgerType } from '@prisma/client';
 import { prisma } from '../config/prisma.js';
+import type { LedgerEntryInput } from '../types/index.js';
 
 /** Get current USDC balance for a user from the ledger */
 export async function getUserBalance(userId: string): Promise<string> {
@@ -15,75 +16,43 @@ export async function getUserBalance(userId: string): Promise<string> {
 }
 
 /** Credit a user's ledger (e.g. deposit received, transfer in) */
-export async function creditLedger({
-  userId,
-  amount,
-  referenceType,
-  referenceId,
-  txHash,
-  blockNumber,
-  description,
-}: {
-  userId: string;
-  amount: string;
-  referenceType: ReferenceType;
-  referenceId: string;
-  txHash?: string;
-  blockNumber?: bigint;
-  description?: string;
-}) {
-  const currentBalance = await getUserBalance(userId);
-  const balanceAfter = new Prisma.Decimal(currentBalance).plus(amount);
+export async function creditLedger(input: LedgerEntryInput) {
+  const currentBalance = await getUserBalance(input.userId);
+  const balanceAfter = new Prisma.Decimal(currentBalance).plus(input.amount);
 
   return prisma.ledger.create({
     data: {
-      userId,
+      userId: input.userId,
       token: 'USDC',
       type: LedgerType.CREDIT,
-      amount: new Prisma.Decimal(amount),
+      amount: new Prisma.Decimal(input.amount),
       balanceAfter,
-      referenceType,
-      referenceId,
-      txHash,
-      blockNumber,
-      description,
+      referenceType: input.referenceType,
+      referenceId: input.referenceId,
+      txHash: input.txHash,
+      blockNumber: input.blockNumber,
+      description: input.description,
     },
   });
 }
 
 /** Debit a user's ledger (e.g. transfer out, swap) */
-export async function debitLedger({
-  userId,
-  amount,
-  referenceType,
-  referenceId,
-  txHash,
-  blockNumber,
-  description,
-}: {
-  userId: string;
-  amount: string;
-  referenceType: ReferenceType;
-  referenceId: string;
-  txHash?: string;
-  blockNumber?: bigint;
-  description?: string;
-}) {
-  const currentBalance = await getUserBalance(userId);
-  const balanceAfter = new Prisma.Decimal(currentBalance).minus(amount);
+export async function debitLedger(input: LedgerEntryInput) {
+  const currentBalance = await getUserBalance(input.userId);
+  const balanceAfter = new Prisma.Decimal(currentBalance).minus(input.amount);
 
   return prisma.ledger.create({
     data: {
-      userId,
+      userId: input.userId,
       token: 'USDC',
       type: LedgerType.DEBIT,
-      amount: new Prisma.Decimal(amount),
+      amount: new Prisma.Decimal(input.amount),
       balanceAfter,
-      referenceType,
-      referenceId,
-      txHash,
-      blockNumber,
-      description,
+      referenceType: input.referenceType,
+      referenceId: input.referenceId,
+      txHash: input.txHash,
+      blockNumber: input.blockNumber,
+      description: input.description,
     },
   });
 }

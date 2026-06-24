@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 import { SwapQuoteRequestSchema, SwapExecRequestSchema } from '@repo/shared';
 import { authMiddleware } from '../middleware/auth.js';
-import { getRate, createQuote, executeSwap, getSwapHistory, getSwapDetail, SwapError } from '../services/swap.service.js';
+import { getRate, createQuote, executeSwap, getSwapHistory, getSwapDetail } from '../services/swap.service.js';
+import { SwapError } from '../errors/index.js';
 
 const app = new Hono();
 
