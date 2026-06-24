@@ -168,11 +168,18 @@ export async function executeSwap(
       reference: swap.id,
     });
 
-    const chapaRef = transfer.data?.reference ?? '';
-    await prisma.swap.update({
-      where: { id: swap.id },
-      data: { chapaRef, chapaStatus: 'TRANSFER_INITIATED', status: 'PAYOUT_PENDING' },
-    });
+    const chapaRef = transfer.data?.reference ?? null;
+    if (!chapaRef) {
+      await prisma.swap.update({
+        where: { id: swap.id },
+        data: { chapaStatus: 'PAYOUT_FAILED', status: 'FAILED', failureReason: 'Chapa returned no reference' },
+      });
+    } else {
+      await prisma.swap.update({
+        where: { id: swap.id },
+        data: { chapaRef, chapaStatus: 'TRANSFER_INITIATED', status: 'PAYOUT_PENDING' },
+      });
+    }
   } catch {
     await prisma.swap.update({
       where: { id: swap.id },

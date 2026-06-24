@@ -30,13 +30,17 @@ app.post('/alchemy', async (c) => {
   const payload = JSON.parse(rawBody);
   const activities: AlchemyActivity[] = payload?.event?.activity ?? [];
 
+  const errors: string[] = [];
+
   for (const activity of activities) {
     // Handle chain reorg — activity removed from the canonical chain
     const isRemoved = activity.removed ?? activity.log?.removed ?? false;
     if (isRemoved) {
-      await revertDeposit(activity.hash).catch((err) => {
-        console.error('revertDeposit failed:', err);
-      });
+      try {
+        await revertDeposit(activity.hash);
+      } catch (err) {
+        errors.push(`revertDeposit(${activity.hash}): ${err}`);
+      }
       continue;
     }
 
@@ -49,15 +53,22 @@ app.post('/alchemy', async (c) => {
       continue;
     }
 
-    await processDeposit({
-      txHash: activity.hash,
-      fromAddress: activity.fromAddress,
-      toAddress: activity.toAddress,
-      rawAmount: activity.rawContract.rawValue,
-      blockNumber: BigInt(activity.blockNum),
-    }).catch((err) => {
-      console.error('processDeposit failed:', err);
-    });
+    try {
+      await processDeposit({
+        txHash: activity.hash,
+        fromAddress: activity.fromAddress,
+        toAddress: activity.toAddress,
+        rawAmount: activity.rawContract.rawValue,
+        blockNumber: BigInt(activity.blockNum),
+      });
+    } catch (err) {
+      errors.push(`processDeposit(${activity.hash}): ${err}`);
+    }
+  }
+
+  if (errors.length > 0) {
+    console.error('Alchemy webhook errors:', errors);
+    return c.json({ ok: false, errors }, 500);
   }
 
   return c.json({ ok: true });
@@ -87,23 +98,23 @@ app.post('/chapa', async (c) => {
   const payload = JSON.parse(rawBody) as ChapaPayoutWebhookPayload;
 
   if (payload.reference && payload.event?.startsWith('payout.')) {
-    try {
-      // Chapa may send status as 'data.status' in nested payload
-      const status = payload.data?.status ?? payload.status;
+    const status = payload.data?.status ?? payload.status;
 
-      await prisma.swap.updateMany({
-        where: { chapaRef: payload.reference },
-        data: {
-          chapaStatus: status ?? 'UNKNOWN',
-          ...(status === 'success'
-            ? { status: 'COMPLETED', completedAt: new Date() }
-            : status === 'failed' || status === 'cancelled'
-              ? { status: 'FAILED' }
-              : {}),
-        },
-      });
-    } catch (err) {
-      console.error('Chapa webhook processing failed:', err);
+    const result = await prisma.swap.updateMany({
+      where: { chapaRef: payload.reference },
+      data: {
+        chapaStatus: status ?? 'UNKNOWN',
+        ...(status === 'success'
+          ? { status: 'COMPLETED', completedAt: new Date() }
+          : status === 'failed' || status === 'cancelled'
+            ? { status: 'FAILED' }
+            : {}),
+      },
+    });
+
+    if (result.count === 0) {
+      console.error(`Chapa webhook: no swap found for ref ${payload.reference}`);
+      return c.json({ error: 'Swap not found' }, 404);
     }
   }
 

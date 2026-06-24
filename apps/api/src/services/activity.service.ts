@@ -89,7 +89,7 @@ async function fetchTransfers(
       ? { id: r.receiver.id, fullName: r.receiver.fullName }
       : { id: r.sender.id, fullName: r.sender.fullName },
     note: r.note,
-    txHash: r.txHash ?? '',
+    txHash: r.txHash,
     createdAt: r.createdAt.toISOString(),
   }));
 }
