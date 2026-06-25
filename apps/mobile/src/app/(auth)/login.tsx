@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { KeyboardAvoidingView, Platform } from 'react-native';
+import { YStack, XStack, Text, Input, Button } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/providers/auth-provider';
@@ -33,100 +34,85 @@ export default function LoginScreen() {
   }, [input, isEmail, isValid, loading, sendEmailOtp, sendSmsOtp, router]);
 
   return (
-    <View style={styles.container}>
-      <SafeAreaView style={styles.safe}>
+    <YStack f={1} bg="$bg">
+      <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView
-          style={styles.kav}
+          style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <View style={styles.inner}>
-            <Text style={styles.title}>Sign in to BirrBridge</Text>
-            <Text style={styles.subtitle}>Enter your email or phone</Text>
+          <YStack f={1} jc="center" px="$6" gap="$3">
+            <Text fontSize={24} fontWeight="500" color="$color" fontFamily="$heading">
+              Sign in to BirrBridge
+            </Text>
+            <Text fontSize={14} color="$colorSecondary" mb="$2" fontFamily="$body">
+              Enter your email or phone
+            </Text>
 
-            <View style={styles.inputWrap}>
-              <TextInput
-                style={styles.input}
-                value={input}
-                onChangeText={setInput}
-                placeholder="you@example.com"
-                placeholderTextColor="rgba(255,255,255,0.4)"
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType={isEmail ? 'email-address' : 'phone-pad'}
-              />
-            </View>
+            <Input
+              value={input}
+              onChangeText={setInput}
+              placeholder="you@example.com"
+              placeholderTextColor="$colorSecondary"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              fontSize={16}
+              color="$color"
+              bg="$bgInput"
+              height={56}
+              br="$3"
+              px="$4"
+              borderWidth={0}
+              borderBottomWidth={1}
+              borderBottomColor="$borderColor"
+              outlineStyle="none"
+            />
 
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-
-            <View style={styles.orWrap}>
-              <View style={styles.orLine} />
-              <Text style={styles.orText}>or</Text>
-              <View style={styles.orLine} />
-            </View>
-
-            <TouchableOpacity style={styles.googleBtn} activeOpacity={0.8}>
-              <Text style={styles.googleBtnText}>Continue with Google</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.continueBtn, !isValid && styles.continueBtnDisabled]}
-              disabled={!isValid || loading}
-              onPress={handleContinue}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.continueBtnText}>
-                {loading ? 'Sending code...' : 'Continue'}
+            {error ? (
+              <Text fontSize={14} color="$danger" textAlign="center" fontFamily="$body">
+                {error}
               </Text>
-            </TouchableOpacity>
-          </View>
+            ) : null}
+
+            <XStack ai="center" my="$4">
+              <YStack f={1} height={1} bg="$borderColor" />
+              <Text px="$3" fontSize={14} color="$colorMuted">or</Text>
+              <YStack f={1} height={1} bg="$borderColor" />
+            </XStack>
+
+            <Button
+              height={56}
+              borderRadius={9999}
+              borderWidth={1}
+              borderColor="$borderColor"
+              bg="transparent"
+              color="$color"
+              fontSize={16}
+              fontWeight="600"
+              fontFamily="$body"
+              pressStyle={{ opacity: 0.8 }}
+            >
+              Continue with Google
+            </Button>
+
+            <Button
+              height={56}
+              borderRadius={9999}
+              bg={isValid ? '$accent' : '$bgInput'}
+              color={isValid ? 'white' : '$colorMuted'}
+              fontSize={16}
+              fontWeight="600"
+              fontFamily="$body"
+              mt="$4"
+              onPress={handleContinue}
+              disabled={!isValid || loading}
+              pressStyle={{ opacity: 0.8, scale: 0.98 }}
+            >
+              {loading ? 'Sending code...' : 'Continue'}
+            </Button>
+          </YStack>
         </KeyboardAvoidingView>
       </SafeAreaView>
-    </View>
+    </YStack>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#191c1f' },
-  safe: { flex: 1 },
-  kav: { flex: 1 },
-  inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 24, gap: 12 },
-  title: {
-    fontSize: 24,
-    fontWeight: '500',
-    color: '#ffffff',
-  },
-  subtitle: { fontSize: 14, color: 'rgba(255,255,255,0.72)', marginBottom: 8 },
-  inputWrap: {
-    height: 56,
-    borderRadius: 12,
-    backgroundColor: '#2a2d30',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
-  },
-  input: { fontSize: 16, color: '#ffffff', padding: 0 },
-  error: { fontSize: 14, color: '#e23b4a', textAlign: 'center' },
-  orWrap: { flexDirection: 'row', alignItems: 'center', marginVertical: 16 },
-  orLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.08)' },
-  orText: { paddingHorizontal: 12, fontSize: 14, color: 'rgba(255,255,255,0.4)' },
-  googleBtn: {
-    height: 56,
-    borderRadius: 9999,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  googleBtnText: { fontSize: 16, fontWeight: '600', color: '#ffffff' },
-  continueBtn: {
-    height: 56,
-    borderRadius: 9999,
-    backgroundColor: '#494fdf',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  continueBtnDisabled: { backgroundColor: 'rgba(255,255,255,0.08)', opacity: 0.4 },
-  continueBtnText: { fontSize: 16, fontWeight: '600', color: '#ffffff' },
-});

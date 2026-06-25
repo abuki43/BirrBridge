@@ -39,7 +39,10 @@ function AuthGuard({ children }: { children: ReactNode }) {
 
 function InnerLayout({ children }: { children: ReactNode }) {
   return (
-    <PrivyProvider appId={process.env.EXPO_PUBLIC_PRIVY_APP_ID ?? ''}>
+    <PrivyProvider
+      appId={process.env.EXPO_PUBLIC_PRIVY_APP_ID ?? ''}
+      clientId={process.env.EXPO_PUBLIC_PRIVY_CLIENT_ID ?? ''}
+    >
       <AuthProvider>
         <AuthGuard>{children}</AuthGuard>
       </AuthProvider>
@@ -60,7 +63,7 @@ export default function RootLayout() {
   }
 
   return (
-    <TamaguiProvider config={tamaguiConfig} defaultTheme="dark">
+    <TamaguiProvider config={tamaguiConfig} defaultTheme="light">
       <QueryProvider>
         <InnerLayout>
           <Stack screenOptions={{ headerShown: false }}>

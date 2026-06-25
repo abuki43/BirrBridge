@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { YStack, Text, Button } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -38,73 +38,60 @@ export default function BiometricsScreen() {
   }, [router]);
 
   return (
-    <View style={styles.container}>
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.inner}>
-          <View style={styles.iconWrap}>
-            <Text style={styles.icon}>{'\uD83D\uDD12'}</Text>
-          </View>
-          <Text style={styles.title}>Secure your account</Text>
-          <Text style={styles.body}>
+    <YStack f={1} bg="$bg">
+      <SafeAreaView style={{ flex: 1 }}>
+        <YStack f={1} jc="center" ai="center" px="$8">
+          <YStack w={80} h={80} br={40} bg="$bgSurface" jc="center" ai="center" mb="$6">
+            <Text fontSize={36}>{'\uD83D\uDD12'}</Text>
+          </YStack>
+          <Text
+            fontSize={24}
+            fontWeight="500"
+            color="$color"
+            textAlign="center"
+            mb="$3"
+            fontFamily="$heading"
+          >
+            Secure your account
+          </Text>
+          <Text
+            fontSize={16}
+            color="$colorSecondary"
+            textAlign="center"
+            mb="$10"
+            px="$2"
+            fontFamily="$body"
+          >
             Use Face ID to log in faster and approve transactions
           </Text>
 
-          <TouchableOpacity
-            style={styles.enableBtn}
+          <Button
+            bg="$accent"
+            color="white"
+            height={56}
+            borderRadius={9999}
+            width="100%"
+            fontSize={16}
+            fontWeight="600"
+            fontFamily="$body"
             onPress={handleEnable}
             disabled={loading}
-            activeOpacity={0.8}
+            pressStyle={{ opacity: 0.8, scale: 0.98 }}
           >
-            <Text style={styles.enableBtnText}>
-              {loading ? 'Setting up...' : 'Enable Face ID'}
-            </Text>
-          </TouchableOpacity>
+            {loading ? 'Setting up...' : 'Enable Face ID'}
+          </Button>
 
-          <TouchableOpacity onPress={() => router.replace('/(auth)/setup' as never)}>
-            <Text style={styles.skip}>Skip</Text>
-          </TouchableOpacity>
-        </View>
+          <Text
+            fontSize={14}
+            color="$colorMuted"
+            mt="$4"
+            fontFamily="$body"
+            onPress={() => router.replace('/(auth)/setup' as never)}
+          >
+            Skip
+          </Text>
+        </YStack>
       </SafeAreaView>
-    </View>
+    </YStack>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#191c1f' },
-  safe: { flex: 1 },
-  inner: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 },
-  iconWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  icon: { fontSize: 36 },
-  title: {
-    fontSize: 24,
-    fontWeight: '500',
-    color: '#ffffff',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  body: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.72)',
-    textAlign: 'center',
-    marginBottom: 40,
-    paddingHorizontal: 8,
-  },
-  enableBtn: {
-    height: 56,
-    backgroundColor: '#494fdf',
-    borderRadius: 9999,
-    width: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  enableBtnText: { fontSize: 16, fontWeight: '600', color: '#ffffff' },
-  skip: { fontSize: 14, color: 'rgba(255,255,255,0.6)', marginTop: 16 },
-});

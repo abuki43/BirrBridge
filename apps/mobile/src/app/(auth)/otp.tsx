@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { KeyboardAvoidingView, Platform, TextInput } from 'react-native';
+import { YStack, Text, useTheme } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Animated, {
@@ -15,6 +16,7 @@ const COUNTDOWN = 45;
 
 export default function OtpScreen() {
   const router = useRouter();
+  const theme = useTheme();
   const { verifyCode, otpDestination, isAuthenticated } = useAuth();
   const [digits, setDigits] = useState<string[]>(Array(DIGITS).fill(''));
   const [count, setCount] = useState(COUNTDOWN);
@@ -96,25 +98,44 @@ export default function OtpScreen() {
     : '';
 
   return (
-    <View style={styles.container}>
-      <SafeAreaView style={styles.safe}>
+    <YStack f={1} bg="$bg">
+      <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView
-          style={styles.kav}
+          style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <View style={styles.inner}>
-            <Text style={styles.title}>Check your inbox</Text>
-            <Text style={styles.sub}>We sent a 6-digit code to {masked}</Text>
+          <YStack f={1} jc="center" ai="center" px="$6">
+            <Text fontSize={24} fontWeight="500" color="$color" mb="$2" fontFamily="$heading">
+              Check your inbox
+            </Text>
+            <Text fontSize={14} color="$colorSecondary" textAlign="center" mb="$8" fontFamily="$body">
+              We sent a 6-digit code to {masked}
+            </Text>
 
-            <Animated.View style={[styles.row, shakeAnim]}>
+            <Animated.View style={[{ flexDirection: 'row', gap: 8 }, shakeAnim]}>
               {digits.map((d, i) => (
-                <View
+                <YStack
                   key={i}
-                  style={[styles.box, d ? styles.boxFilled : null, error ? styles.boxError : null]}
+                  width={48}
+                  height={56}
+                  br="$3"
+                  bg="$bgInput"
+                  jc="center"
+                  ai="center"
+                  borderWidth={error ? 1 : d ? 1 : 0}
+                  borderColor={error ? '$danger' : d ? '$borderColor' : 'transparent'}
                 >
                   <TextInput
                     ref={(r) => { refs.current[i] = r as TextInput; }}
-                    style={styles.boxInput}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      textAlign: 'center',
+                      fontSize: 24,
+                      fontWeight: '600',
+                      color: theme.color.val as string,
+                      padding: 0,
+                    }}
                     value={d}
                     onChangeText={(t) => handleChange(t, i)}
                     onKeyPress={({ nativeEvent }) => handleKey(nativeEvent.key, i)}
@@ -123,69 +144,44 @@ export default function OtpScreen() {
                     textContentType="oneTimeCode"
                     autoComplete="one-time-code"
                   />
-                </View>
+                </YStack>
               ))}
             </Animated.View>
 
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-            {loading ? <Text style={styles.loading}>Verifying...</Text> : null}
+            {error ? (
+              <Text fontSize={14} color="$danger" mt="$4" textAlign="center" fontFamily="$body">
+                {error}
+              </Text>
+            ) : null}
+            {loading ? (
+              <Text fontSize={14} color="$colorMuted" mt="$6" fontFamily="$body">
+                Verifying...
+              </Text>
+            ) : null}
 
             {count > 0 ? (
-              <Text style={styles.timer}>Resend code in {count}s</Text>
+              <Text fontSize={14} color="$colorMuted" mt="$6" fontFamily="$body">
+                Resend code in {count}s
+              </Text>
             ) : (
-              <TouchableOpacityText
-                label="Resend code"
+              <Text
+                fontSize={14}
+                color="$accent"
+                mt="$6"
+                fontFamily="$body"
                 onPress={() => {
                   setCount(COUNTDOWN);
                   setDigits(Array(DIGITS).fill(''));
                   setError('');
                   refs.current[0]?.focus();
                 }}
-              />
+              >
+                Resend code
+              </Text>
             )}
-          </View>
+          </YStack>
         </KeyboardAvoidingView>
       </SafeAreaView>
-    </View>
+    </YStack>
   );
 }
-
-function TouchableOpacityText({ label, onPress }: { label: string; onPress: () => void }) {
-  return (
-    <Text style={styles.resend} onPress={onPress}>
-      {label}
-    </Text>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#191c1f' },
-  safe: { flex: 1 },
-  kav: { flex: 1 },
-  inner: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-  title: { fontSize: 24, fontWeight: '500', color: '#ffffff', marginBottom: 8 },
-  sub: { fontSize: 14, color: 'rgba(255,255,255,0.72)', textAlign: 'center', marginBottom: 32 },
-  row: { flexDirection: 'row', gap: 8 },
-  box: {
-    width: 48,
-    height: 56,
-    borderRadius: 12,
-    backgroundColor: '#2a2d30',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  boxFilled: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
-  boxError: { borderWidth: 1, borderColor: '#e23b4a' },
-  boxInput: {
-    width: '100%',
-    height: '100%',
-    textAlign: 'center',
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
-  error: { fontSize: 14, color: '#e23b4a', marginTop: 16, textAlign: 'center' },
-  loading: { fontSize: 14, color: 'rgba(255,255,255,0.48)', marginTop: 24 },
-  timer: { fontSize: 14, color: 'rgba(255,255,255,0.48)', marginTop: 24 },
-  resend: { fontSize: 14, color: '#494fdf', marginTop: 24 },
-});
