@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useState, type ReactNode } from 'react';
+import { Platform } from 'react-native';
 
 const STALE_TIME = 30_000;
 const GC_TIME = 5 * 60_000;
@@ -24,7 +25,7 @@ export function QueryProvider({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       {children}
-      <ReactQueryDevtools buttonPosition="bottom-right" />
+      {Platform.OS === 'web' && <ReactQueryDevtools buttonPosition="bottom-right" />}
     </QueryClientProvider>
   );
 }

@@ -2,6 +2,9 @@ const { getDefaultConfig } = require('expo/metro-config');
 
 const config = getDefaultConfig(__dirname);
 
+config.resolver.unstable_enablePackageExports = true;
+config.resolver.unstable_conditionNames = ['require', 'react-native'];
+
 const resolveRequestWithPackageExports = (context, moduleName, platform) => {
   if (moduleName === 'isows') {
     const ctx = {
@@ -23,14 +26,6 @@ const resolveRequestWithPackageExports = (context, moduleName, platform) => {
     const ctx = {
       ...context,
       unstable_conditionNames: ['browser'],
-    };
-    return ctx.resolveRequest(ctx, moduleName, platform);
-  }
-
-  if (moduleName.startsWith('@privy-io/')) {
-    const ctx = {
-      ...context,
-      unstable_enablePackageExports: true,
     };
     return ctx.resolveRequest(ctx, moduleName, platform);
   }

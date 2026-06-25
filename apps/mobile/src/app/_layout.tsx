@@ -1,3 +1,5 @@
+import '@tamagui/core';
+
 import { useEffect, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
