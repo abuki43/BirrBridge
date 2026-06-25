@@ -12,7 +12,7 @@ export default function AuthLayout() {
       <Stack.Screen name="login" />
       <Stack.Screen name="otp" />
       <Stack.Screen name="biometrics" />
-      <Stack.Screen name="setup/index" />
+      <Stack.Screen name="setup" />
     </Stack>
   );
 }

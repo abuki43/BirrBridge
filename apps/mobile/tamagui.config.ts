@@ -9,6 +9,7 @@ const headingFont = createFont({
     1: 10,
     2: 12,
     3: 14,
+    true: 4,
     4: 16,
     5: 20,
     6: 24,
@@ -33,6 +34,7 @@ const bodyFont = createFont({
     1: 10,
     2: 12,
     3: 14,
+    true: 4,
     4: 16,
     5: 20,
     6: 24,
@@ -53,6 +55,7 @@ const monoFont = createFont({
   family: 'JetBrainsMono',
   size: {
     1: 12,
+    true: 2,
     2: 14,
   },
   weight: {
@@ -107,6 +110,7 @@ const tokens = createTokens({
   size: {
     0: 0,
     1: 4,
+    true: 4,
     2: 8,
     3: 12,
     4: 16,
