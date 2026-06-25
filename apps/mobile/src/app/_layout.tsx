@@ -1,10 +1,11 @@
 import '@tamagui/core';
 
 import { useEffect, type ReactNode } from 'react';
-import { View } from 'react-native';
+import { View, useColorScheme } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { TamaguiProvider } from 'tamagui';
+import { StatusBar } from 'expo-status-bar';
 import { PrivyProvider } from '@privy-io/expo';
 import { QueryProvider } from '@/providers/query-provider';
 import { AuthProvider, useAuth } from '@/providers/auth-provider';
@@ -58,12 +59,15 @@ export default function RootLayout() {
     JetBrainsMono: JetBrainsMono_400Regular,
   })
 
+  const colorScheme = useColorScheme();
+
   if (!fontsLoaded) {
     return <View style={{ flex: 1, backgroundColor: '#191c1f' }} />
   }
 
   return (
-    <TamaguiProvider config={tamaguiConfig} defaultTheme="light">
+    <TamaguiProvider config={tamaguiConfig} defaultTheme={colorScheme ?? 'dark'}>
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
       <QueryProvider>
         <InnerLayout>
           <Stack screenOptions={{ headerShown: false }}>
